@@ -23,8 +23,10 @@ import { GuardianDashboard } from './components/panels/GuardianDashboard'
 import { WorkflowExpander } from './components/panels/WorkflowExpander'
 import { TelemetryStream } from './components/panels/TelemetryStream'
 import { XFilesPanel } from './components/panels/XFilesPanel'
+import { DashboardGrid } from './components/dashboard/DashboardGrid'
 import { SearchBar } from './components/controls/SearchBar'
 import { ViewSwitcher } from './components/controls/ViewSwitcher'
+import { ControlSurface } from './components/controls/ControlSurface'
 import { useXSystemStore } from './store/x-system-store'
 
 export default function App() {
@@ -101,6 +103,17 @@ export default function App() {
         <div className="flex items-center gap-3">
           <SearchBar />
           <StatsBar config={config} />
+          <button
+            onClick={useControlStore.getState().toggleControlSurface}
+            className={`font-mono text-[9px] px-2 py-1 rounded transition-colors ${
+              useControlStore.getState().showControlSurface
+                ? 'text-[var(--color-cyan)] bg-[var(--color-bg-card)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+            title="Control Surface"
+          >
+            MIX
+          </button>
         </div>
       </header>
 
@@ -115,13 +128,7 @@ export default function App() {
             </p>
           </div>
         )}
-        {viewMode === 'dashboard' && (
-          <div className="w-full h-full flex items-center justify-center">
-            <p className="font-mono text-xs text-[var(--color-text-muted)]">
-              Dashboard view coming in Phase 5
-            </p>
-          </div>
-        )}
+        {viewMode === 'dashboard' && <DashboardGrid />}
 
         {/* Governance panels */}
         {showGuardianDashboard && <GuardianDashboard />}
@@ -136,6 +143,9 @@ export default function App() {
 
         {/* Map key */}
         <MapKey />
+
+        {/* Control Surface */}
+        <ControlSurface />
 
         {/* Telemetry stream (bottom panel) */}
         <TelemetryStream />
