@@ -100,9 +100,14 @@ export function ExpandedNodeView() {
                     {f.issue.description}
                   </p>
                   {f.suggestedAction && (
-                    <div className="text-[10px] bg-[var(--color-bg-deep)] p-1.5 rounded border border-[var(--color-border)]">
-                      <span className="text-[var(--color-success)] font-bold">Fix: </span>
-                      <span className="text-[var(--color-text-secondary)]">{f.suggestedAction}</span>
+                    <div className="text-[10px] bg-[var(--color-bg-deep)] p-1.5 rounded border border-[var(--color-border)] flex items-center justify-between">
+                      <div>
+                        <span className="text-[var(--color-success)] font-bold">Fix: </span>
+                        <span className="text-[var(--color-text-secondary)]">{f.suggestedAction}</span>
+                      </div>
+                      <button className="ml-2 bg-[var(--color-success)]/20 hover:bg-[var(--color-success)]/30 text-[var(--color-success)] px-2 py-0.5 rounded text-[9px] font-mono border border-[var(--color-success)]/30">
+                        Run Fix
+                      </button>
                     </div>
                   )}
                 </div>
