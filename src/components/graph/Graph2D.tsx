@@ -85,6 +85,7 @@ export function Graph2D() {
   const selectNode = useControlStore((s) => s.selectNode)
   const selectEdge = useControlStore((s) => s.selectEdge)
   const setHoveredNode = useControlStore((s) => s.setHoveredNode)
+  const expandNode = useControlStore((s) => s.expandNode)
 
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
@@ -336,6 +337,10 @@ export function Graph2D() {
                 onClick={(e) => {
                   e.stopPropagation()
                   selectNode(node.node_id)
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation()
+                  expandNode(node.node_id)
                 }}
                 onMouseEnter={() => setHoveredNode(node.node_id)}
                 onMouseLeave={() => setHoveredNode(null)}

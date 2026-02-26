@@ -11,6 +11,8 @@ import { NODE_TYPE_COLORS, STATUS_COLORS } from '../../lib/types'
 export function NodeDetail() {
   const node = useControlStore(selectSelectedNode)
   const selectNode = useControlStore((s) => s.selectNode)
+  const expandNode = useControlStore((s) => s.expandNode)
+  const expandedNodeId = useControlStore((s) => s.expandedNodeId)
 
   if (!node) return null
 
@@ -28,12 +30,25 @@ export function NodeDetail() {
               {node.node_type}
             </span>
           </div>
-          <button
-            onClick={() => selectNode(null)}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-lg leading-none"
-          >
-            x
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => expandNode(expandedNodeId === node.node_id ? null : node.node_id)}
+              className={`font-mono text-[9px] px-2 py-0.5 rounded ${
+                expandedNodeId === node.node_id
+                  ? 'text-[var(--color-cyan)] bg-[var(--color-bg-card)]'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-cyan)] hover:bg-[var(--color-bg-card)]'
+              }`}
+              title="Expand / drill down"
+            >
+              Expand
+            </button>
+            <button
+              onClick={() => selectNode(null)}
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-lg leading-none"
+            >
+              x
+            </button>
+          </div>
         </div>
         <h3 className="font-mono text-sm font-semibold mt-1">{node.name}</h3>
         <code className="text-[10px] text-[var(--color-text-muted)]">{node.node_id}</code>

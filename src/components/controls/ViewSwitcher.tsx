@@ -13,6 +13,10 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string; icon: string }> = [
   { mode: '3d', label: '3D', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
   { mode: 'timeline', label: 'Timeline', icon: 'M3 12h18M3 6h18M3 18h18' },
   { mode: 'dashboard', label: 'Dash', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
+  { mode: 'library', label: 'Library', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+  { mode: 'abacus', label: 'Abacus', icon: 'M12 2a10 10 0 0110 10A10 10 0 0112 22a10 10 0 0110-10A10 10 0 0112 2z' },
+  { mode: 'agents', label: 'Agents', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 108 0 4 4 0 00-8 0z' },
+  { mode: 'cursor', label: 'Cursor', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
 ]
 
 export function ViewSwitcher() {

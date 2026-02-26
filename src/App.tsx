@@ -11,9 +11,10 @@
  * - Bottom nav bar fixed to bottom, responsive
  * - Max card width 520px per dashboard rules
  */
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useControlStore } from './store/control-store'
 import { SAMPLE_CONFIG } from './lib/sample-data'
+import { NodeExpansionProvider } from './context/NodeExpansionContext'
 import { Graph2D } from './components/graph/Graph2D'
 import { Graph3D } from './components/graph/Graph3D'
 import { TimelineView } from './components/graph/TimelineView'
@@ -31,6 +32,14 @@ import { SearchBar } from './components/controls/SearchBar'
 import { ViewSwitcher } from './components/controls/ViewSwitcher'
 import { ControlSurface } from './components/controls/ControlSurface'
 import { useXSystemStore } from './store/x-system-store'
+import { ExpandedNodeView } from './components/expansion/ExpandedNodeView'
+import { ExpansionBreadcrumb } from './components/expansion/ExpansionBreadcrumb'
+import { WorkflowOrchestratorLive } from './components/workflow/WorkflowOrchestratorLive'
+import { WorkflowLibrary } from './components/workflow/WorkflowLibrary'
+import { AbacusDashboard } from './components/abacus/AbacusDashboard'
+import { AgentManagement } from './components/agents/AgentManagement'
+import { CursorStatus } from './components/cursor/CursorStatus'
+import { ConfigLeafViewer } from './components/panels/ConfigLeafViewer'
 
 export default function App() {
   const loadConfig = useControlStore((s) => s.loadConfig)
@@ -43,6 +52,9 @@ export default function App() {
   const showGuardianDashboard = useControlStore((s) => s.showGuardianDashboard)
   const toggleGuardianDashboard = useControlStore((s) => s.toggleGuardianDashboard)
   const expandedWorkflowId = useControlStore((s) => s.expandedWorkflowId)
+  const expandedNodeId = useControlStore((s) => s.expandedNodeId)
+  const [orchestratorLiveWorkflowId, setOrchestratorLiveWorkflowId] = useState<string | null>(null)
+  const [showConfigLeafViewer, setShowConfigLeafViewer] = useState(false)
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
   const showGovernanceOverlay = useControlStore((s) => s.showGovernanceOverlay)
   const toggleGovernanceOverlay = useControlStore((s) => s.toggleGovernanceOverlay)
@@ -75,6 +87,7 @@ export default function App() {
   }
 
   return (
+    <NodeExpansionProvider>
     <div className="w-full h-full flex flex-col bg-[var(--color-bg-deep)]">
       {/* Top bar */}
       <header className="flex items-center justify-between px-4 py-2 bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] z-30 shrink-0">
@@ -105,8 +118,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ExpansionBreadcrumb />
           <SearchBar />
           <StatsBar config={config} />
+          <button
+            onClick={() => setShowConfigLeafViewer((v) => !v)}
+            className={`font-mono text-[9px] px-2 py-1 rounded transition-colors ${
+              showConfigLeafViewer ? 'text-[var(--color-purple)] bg-[var(--color-bg-card)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+            title="Config Leaf"
+          >
+            Config
+          </button>
           <button
             onClick={useControlStore.getState().toggleControlSurface}
             className={`font-mono text-[9px] px-2 py-1 rounded transition-colors ${
@@ -127,10 +150,44 @@ export default function App() {
         {viewMode === '3d' && <Graph3D />}
         {viewMode === 'timeline' && <TimelineView />}
         {viewMode === 'dashboard' && <DashboardGrid />}
+        {viewMode === 'abacus' && (
+          <div className="w-full h-full overflow-auto">
+            <AbacusDashboard />
+          </div>
+        )}
+        {viewMode === 'agents' && (
+          <div className="w-full h-full overflow-auto">
+            <AgentManagement />
+          </div>
+        )}
+        {viewMode === 'cursor' && (
+          <div className="w-full h-full overflow-auto">
+            <CursorStatus />
+          </div>
+        )}
+        {viewMode === 'library' && (
+          <div className="w-full h-full overflow-auto">
+            <WorkflowLibrary
+              onRun={(id) => setOrchestratorLiveWorkflowId(id)}
+              onViewLive={(id) => setOrchestratorLiveWorkflowId(id)}
+            />
+          </div>
+        )}
+
+        {/* Workflow Orchestrator Live (fullscreen) */}
+        {orchestratorLiveWorkflowId && (
+          <WorkflowOrchestratorLive
+            workflowId={orchestratorLiveWorkflowId}
+            onClose={() => setOrchestratorLiveWorkflowId(null)}
+          />
+        )}
+
+        {/* Expansion panel */}
+        {expandedNodeId && !showGuardianDashboard && !expandedWorkflowId && !orchestratorLiveWorkflowId && <ExpandedNodeView />}
 
         {/* Governance panels */}
         {showGuardianDashboard && <GuardianDashboard />}
-        {expandedWorkflowId && !showGuardianDashboard && <WorkflowExpander />}
+        {expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && <WorkflowExpander />}
 
         {/* Detail panels */}
         {selectedNodeId && !showGuardianDashboard && !expandedWorkflowId && <NodeDetail />}
@@ -151,24 +208,35 @@ export default function App() {
         {/* Telemetry stream (bottom panel) */}
         <TelemetryStream />
 
+        {/* Config Leaf Viewer */}
+        {showConfigLeafViewer && <ConfigLeafViewer onClose={() => setShowConfigLeafViewer(false)} />}
+
         {/* Workflow quick-access: show workflows from config */}
-        {config.workflows.length > 0 && !expandedWorkflowId && !showGuardianDashboard && (
+        {config.workflows.length > 0 && !expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && (
           <div className="absolute top-2 left-2 z-10">
             <div className="bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg p-2 space-y-1">
               <span className="font-mono text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider">
                 Workflows
               </span>
               {config.workflows.map((wf) => (
-                <button
-                  key={wf.workflow_id}
-                  onClick={() => expandWorkflow(wf.workflow_id)}
-                  className="block w-full text-left px-2 py-1 rounded text-[10px] font-mono text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card)] hover:text-[var(--color-cyan)] transition-colors"
-                >
-                  {wf.workflow_id}
-                  <span className="ml-1 text-[8px] text-[var(--color-text-muted)]">
-                    ({wf.workflow_type})
-                  </span>
-                </button>
+                <div key={wf.workflow_id} className="flex items-center gap-1">
+                  <button
+                    onClick={() => expandWorkflow(wf.workflow_id)}
+                    className="flex-1 text-left px-2 py-1 rounded text-[10px] font-mono text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card)] hover:text-[var(--color-cyan)] transition-colors"
+                  >
+                    {wf.workflow_id}
+                    <span className="ml-1 text-[8px] text-[var(--color-text-muted)]">
+                      ({wf.workflow_type})
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setOrchestratorLiveWorkflowId(wf.workflow_id)}
+                    className="font-mono text-[8px] px-1.5 py-0.5 rounded text-[var(--color-amber)] hover:bg-[var(--color-bg-card)]"
+                    title="Open Orchestrator Live"
+                  >
+                    Live
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -267,6 +335,7 @@ export default function App() {
         </div>
       </footer>
     </div>
+    </NodeExpansionProvider>
   )
 }
 

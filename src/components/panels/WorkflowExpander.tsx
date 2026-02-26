@@ -5,20 +5,34 @@
  * - Expands a workflow into its constituent steps
  * - Shows step sequence with animated progress indicators
  * - Guardian gates inline at enforcement points
- * - Breadcrumb navigation for drill-down depth
- * - Retry policy and evidence policy visualization
- *
- * Agent Instructions:
- * - Triggered when user clicks a workflow-type node or workflow entry
- * - Workflow data comes from XMAP v7 `workflows[]`
- * - Steps reference nodes by node_id
+ * - MCP Packet Viewer for step drill-down
  */
+import { useState } from 'react'
 import { useControlStore } from '../../store/control-store'
+import { McpPacketViewer } from './McpPacketViewer'
 import type { WorkflowStep, GuardianGate } from '../../lib/types'
+
+/** Infer sample MCP request from step id/node/action for demo */
+function inferMcpPacket(step: WorkflowStep): { request: { name: string; server?: string; arguments?: Record<string, unknown> }; response?: { success: boolean; data?: unknown; error?: string; code?: string } } {
+  if (step.step_id.includes('pkg') || step.action === 'query') {
+    return { request: { name: 'pkg_hybrid', server: 'pkg', arguments: { query: '...', topK: 10 } } }
+  }
+  if (step.step_id.includes('guardian') || step.action === 'validate-gates') {
+    return { request: { name: 'guardian_check_gates', server: 'guardian', arguments: { gates: ['contextLoadedGate'] } } }
+  }
+  if (step.step_id.includes('credential') || step.action === 'preflight') {
+    return { request: { name: 'pass_preflight_all', server: 'pow3r', arguments: { requiredProviders: ['gemini', 'replicate'] } } }
+  }
+  return {
+    request: { name: step.action, server: step.node, arguments: {} },
+    response: { success: true },
+  }
+}
 
 export function WorkflowExpander() {
   const config = useControlStore((s) => s.config)
   const expandedWorkflowId = useControlStore((s) => s.expandedWorkflowId)
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const breadcrumb = useControlStore((s) => s.workflowBreadcrumb)
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
   const popWorkflowBreadcrumb = useControlStore((s) => s.popWorkflowBreadcrumb)
@@ -90,6 +104,8 @@ export function WorkflowExpander() {
                 index={i}
                 total={(workflow.steps ?? []).length}
                 nodeName={config.nodes.find((n) => n.node_id === step.node)?.name ?? step.node}
+                isSelected={selectedStepId === step.step_id}
+                onSelect={() => setSelectedStepId(selectedStepId === step.step_id ? null : step.step_id)}
               />
             ))}
           </div>
@@ -151,6 +167,24 @@ export function WorkflowExpander() {
           </Section>
         )}
 
+        {/* MCP Packet Viewer (when step selected) */}
+        {selectedStepId && (() => {
+          const step = (workflow.steps ?? []).find((s) => s.step_id === selectedStepId)
+          if (!step) return null
+          const packet = inferMcpPacket(step)
+          return (
+            <Section title="MCP Packet">
+              <McpPacketViewer
+                request={packet.request}
+                response={packet.response ?? null}
+                durationMs={1234}
+                correlationId="cor-demo-001"
+                stepId={step.step_id}
+              />
+            </Section>
+          )
+        })()}
+
         {/* Evidence Policy */}
         {workflow.evidence_policy && (
           <Section title="Required Evidence">
@@ -171,17 +205,22 @@ export function WorkflowExpander() {
   )
 }
 
-function StepRow({ step, index, total, nodeName }: {
+function StepRow({ step, index, total, nodeName, isSelected, onSelect }: {
   step: WorkflowStep
   index: number
   total: number
   nodeName: string
+  isSelected?: boolean
+  onSelect?: () => void
 }) {
   const isFirst = index === 0
   const isLast = index === total - 1
 
   return (
-    <div className="relative flex items-start gap-3 pb-3">
+    <div
+      className={`relative flex items-start gap-3 pb-3 cursor-pointer ${isSelected ? 'ring-1 ring-[var(--color-cyan)] rounded p-1 -m-1' : ''}`}
+      onClick={onSelect}
+    >
       {/* Step indicator */}
       <div className="relative z-10 w-6 h-6 shrink-0 flex items-center justify-center">
         <div
