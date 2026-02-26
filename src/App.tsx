@@ -32,6 +32,8 @@ import { SearchBar } from './components/controls/SearchBar'
 import { ViewSwitcher } from './components/controls/ViewSwitcher'
 import { ControlSurface } from './components/controls/ControlSurface'
 import { useXSystemStore } from './store/x-system-store'
+import { useWorkflowExecutionStore } from './store/workflow-execution-store'
+import { connectXSystemSSE } from './lib/x-system-sse'
 import { ExpandedNodeView } from './components/expansion/ExpandedNodeView'
 import { ExpansionBreadcrumb } from './components/expansion/ExpansionBreadcrumb'
 import { WorkflowOrchestratorLive } from './components/workflow/WorkflowOrchestratorLive'
@@ -66,14 +68,38 @@ export default function App() {
   const showTelemetryPanel = useXSystemStore((s) => s.showTelemetryPanel)
   const toggleXFilesPanel = useXSystemStore((s) => s.toggleXFilesPanel)
   const showXFilesPanel = useXSystemStore((s) => s.showXFilesPanel)
+  const addEvent = useXSystemStore((s) => s.addEvent)
+  const setConnected = useXSystemStore((s) => s.setConnected)
   const startSimulation = useXSystemStore((s) => s.startSimulation)
   const stopSimulation = useXSystemStore((s) => s.stopSimulation)
+  const updateStepFromEvent = useWorkflowExecutionStore((s) => s.updateStepFromEvent)
 
   useEffect(() => {
     loadConfig(SAMPLE_CONFIG)
     startSimulation()
     return () => stopSimulation()
   }, [loadConfig, startSimulation, stopSimulation])
+
+  useEffect(() => {
+    const dispose = connectXSystemSSE({
+      onEvent: (ev) => {
+        addEvent(ev)
+        const d = ev.data as Record<string, unknown> | undefined
+        if (d && typeof d.workflowId === 'string' && typeof d.stepId === 'string') {
+          const status = (d.status as 'pending' | 'running' | 'success' | 'fail') ?? (ev.severity === 'high' || ev.severity === 'critical' ? 'fail' as const : 'success' as const)
+          updateStepFromEvent(d.workflowId, d.stepId, status, {
+            startedAt: typeof d.startedAt === 'string' ? d.startedAt : undefined,
+            completedAt: typeof d.completedAt === 'string' ? d.completedAt : undefined,
+            durationMs: typeof d.durationMs === 'number' ? d.durationMs : undefined,
+            error: typeof d.error === 'string' ? d.error : undefined,
+          })
+        }
+      },
+      onConnect: () => setConnected(true),
+      onDisconnect: () => setConnected(false),
+    })
+    return dispose
+  }, [addEvent, setConnected, updateStepFromEvent])
 
   if (!config) {
     return (
