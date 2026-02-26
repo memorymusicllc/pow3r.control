@@ -23,6 +23,7 @@ import { MapKey } from './components/panels/MapKey'
 import { GuardianDashboard } from './components/panels/GuardianDashboard'
 import { WorkflowExpander } from './components/panels/WorkflowExpander'
 import { TelemetryStream } from './components/panels/TelemetryStream'
+import { PKGOverlay } from './components/panels/PKGOverlay'
 import { XFilesPanel } from './components/panels/XFilesPanel'
 import { DashboardGrid } from './components/dashboard/DashboardGrid'
 import { ConfigSelector } from './components/controls/ConfigSelector'
@@ -134,6 +135,9 @@ export default function App() {
         {/* Detail panels */}
         {selectedNodeId && !showGuardianDashboard && !expandedWorkflowId && <NodeDetail />}
         {selectedEdgeId && !selectedNodeId && !showGuardianDashboard && !expandedWorkflowId && <EdgeDetail />}
+
+        {/* PKG Knowledge Overlay (Layer 5: Intelligence) */}
+        <PKGOverlay />
 
         {/* X-Files panel */}
         {showXFilesPanel && !showGuardianDashboard && !expandedWorkflowId && <XFilesPanel />}
