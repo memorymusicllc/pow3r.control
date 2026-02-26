@@ -12,9 +12,10 @@
  * - Uses @react-three/fiber Canvas, @react-three/drei helpers
  * - Bloom creates the "Data as Light" aesthetic
  */
-import { useMemo, Suspense } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Stars } from '@react-three/drei'
+import { useMemo, useRef, Suspense } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { Stars } from '@react-three/drei'
+import * as THREE from 'three'
 import {
   EffectComposer,
   Bloom,
@@ -25,6 +26,7 @@ import { NodeMesh } from './NodeMesh'
 import { EdgeBeam } from './EdgeBeam'
 import { GuardianGateMesh } from './GuardianGateMesh'
 import { TelemetryParticles } from './TelemetryParticles'
+import { CameraController } from './CameraController'
 import { useForceLayout3D } from './use-force-layout-3d'
 import type { XmapNode, XmapEdge } from '../../lib/types'
 
@@ -186,7 +188,47 @@ function SceneContent() {
 
       {/* Telemetry particle bursts */}
       <TelemetryParticles positions={positions} />
+
+      {/* Camera controller with zoom-to-node and auto-rotate */}
+      <CameraController positions={positions} />
     </>
+  )
+}
+
+function AmbientParticles() {
+  const ref = useRef<THREE.Points>(null)
+  const count = 500
+  const positions = useMemo(() => {
+    const arr = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      arr[i * 3] = (Math.random() - 0.5) * 300
+      arr[i * 3 + 1] = (Math.random() - 0.5) * 300
+      arr[i * 3 + 2] = (Math.random() - 0.5) * 300
+    }
+    return arr
+  }, [])
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return
+    ref.current.rotation.y = clock.getElapsedTime() * 0.01
+    ref.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.005) * 0.05
+  })
+
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#00E5FF"
+        size={0.3}
+        transparent
+        opacity={0.15}
+        sizeAttenuation
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
   )
 }
 
@@ -197,55 +239,51 @@ export function Graph3D() {
   return (
     <div className="w-full h-full relative">
       <Canvas
-        camera={{ position: [80, 60, 80], fov: 50, near: 0.1, far: 2000 }}
-        gl={{ antialias: true, alpha: false }}
+        camera={{ position: [80, 60, 80], fov: 45, near: 0.1, far: 2000 }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onPointerMissed={() => {
           selectNode(null)
           selectEdge(null)
         }}
         style={{ background: '#000000' }}
       >
-        <color attach="background" args={['#000005']} />
-        <fog attach="fog" args={['#000005', 150, 400]} />
+        <color attach="background" args={['#000003']} />
+        <fog attach="fog" args={['#000003', 120, 350]} />
 
-        {/* Lighting */}
-        <ambientLight intensity={0.15} />
-        <pointLight position={[50, 80, 50]} intensity={0.6} color="#00E5FF" />
-        <pointLight position={[-50, -40, -50]} intensity={0.3} color="#FF00FF" />
-        <pointLight position={[0, 100, 0]} intensity={0.2} color="#ffffff" />
+        {/* Enhanced multi-point lighting for depth */}
+        <ambientLight intensity={0.08} />
+        <pointLight position={[60, 90, 60]} intensity={0.8} color="#00E5FF" distance={250} decay={2} />
+        <pointLight position={[-60, -50, -60]} intensity={0.4} color="#FF00FF" distance={200} decay={2} />
+        <pointLight position={[0, 120, 0]} intensity={0.15} color="#ffffff" distance={300} />
+        <pointLight position={[-80, 30, 80]} intensity={0.2} color="#A855F7" distance={180} decay={2} />
+        <hemisphereLight args={['#000820', '#000005', 0.1]} />
 
-        {/* Background stars (PKG knowledge nodes metaphor) */}
-        <Stars radius={300} depth={100} count={2000} factor={3} saturation={0} fade speed={0.5} />
+        {/* Star field (PKG knowledge constellation) */}
+        <Stars radius={250} depth={80} count={3000} factor={4} saturation={0.1} fade speed={0.3} />
+
+        {/* Ambient floating particles (Data-as-Light atmosphere) */}
+        <AmbientParticles />
 
         <Suspense fallback={null}>
           <SceneContent />
         </Suspense>
 
-        {/* Camera controls */}
-        <OrbitControls
-          enableDamping
-          dampingFactor={0.08}
-          minDistance={20}
-          maxDistance={300}
-          autoRotate={false}
-          enablePan
-        />
-
-        {/* Post-processing: Bloom for Data-as-Light glow */}
-        <EffectComposer>
+        {/* Enhanced post-processing */}
+        <EffectComposer multisampling={0}>
           <Bloom
-            intensity={0.8}
-            luminanceThreshold={0.2}
-            luminanceSmoothing={0.9}
+            intensity={1.2}
+            luminanceThreshold={0.15}
+            luminanceSmoothing={0.95}
             mipmapBlur
+            radius={0.85}
           />
-          <Vignette eskil={false} offset={0.1} darkness={0.8} />
+          <Vignette eskil={false} offset={0.15} darkness={0.9} />
         </EffectComposer>
       </Canvas>
 
       {/* 3D control hints */}
       <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
-        Drag: rotate | Right-drag: pan | Scroll: zoom | Click: select
+        Drag: rotate | Right-drag: pan | Scroll: zoom | Click: select | Idle: auto-rotate
       </div>
     </div>
   )

@@ -69,16 +69,29 @@ export function NodeMesh({
 
   return (
     <group position={[position.x, position.y, position.z]}>
-      {/* Outer glow sphere */}
+      {/* Outer atmospheric glow (larger, softer) */}
       <mesh ref={glowRef}>
         <sphereGeometry args={[1, 16, 16]} />
         <meshBasicMaterial
           color={statusColor}
           transparent
-          opacity={isDimmed ? 0.02 : isSelected ? 0.2 : 0.08}
+          opacity={isDimmed ? 0.01 : isSelected ? 0.25 : 0.1}
           depthWrite={false}
         />
       </mesh>
+
+      {/* Inner core glow (tighter, brighter) */}
+      {!isDimmed && (
+        <mesh scale={[NODE_SCALE * 1.15, NODE_SCALE * 1.15, NODE_SCALE * 1.15]}>
+          <sphereGeometry args={[1, 12, 12]} />
+          <meshBasicMaterial
+            color={isSelected ? '#ffffff' : statusColor}
+            transparent
+            opacity={isSelected ? 0.15 : 0.05}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
 
       {/* Main node mesh */}
       <mesh
@@ -91,11 +104,12 @@ export function NodeMesh({
         <meshStandardMaterial
           color={typeColor}
           emissive={statusColor}
-          emissiveIntensity={isDimmed ? 0.05 : isSelected ? 1.2 : 0.5}
-          metalness={0.3}
-          roughness={0.4}
+          emissiveIntensity={isDimmed ? 0.03 : isSelected ? 1.8 : 0.7}
+          metalness={0.4}
+          roughness={0.3}
           transparent
           opacity={opacity}
+          envMapIntensity={0.5}
         />
       </mesh>
 

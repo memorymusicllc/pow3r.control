@@ -25,8 +25,8 @@ interface EdgeBeamProps {
   onClick: () => void
 }
 
-const PARTICLE_COUNT = 12
-const PARTICLE_SPEED = 0.4
+const PARTICLE_COUNT = 20
+const PARTICLE_SPEED = 0.5
 
 export function EdgeBeam({
   edge,
@@ -156,9 +156,9 @@ export function EdgeBeam({
           </bufferGeometry>
           <pointsMaterial
             color={edgeColor}
-            size={isSelected ? 1.2 : 0.6}
+            size={isSelected ? 1.8 : 0.9}
             transparent
-            opacity={particleOpacity}
+            opacity={particleOpacity * 1.3}
             sizeAttenuation
             depthWrite={false}
             blending={THREE.AdditiveBlending}
