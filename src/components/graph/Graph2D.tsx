@@ -1,15 +1,17 @@
 /**
- * pow3r.control - 2D Graph Visualization
+ * pow3r.control - 2D Graph Visualization with In-Graph Compound Expansion
  *
  * Purpose:
  * - Force-directed 2D graph rendering of XMAP v7 nodes and edges
- * - Interactive pan, zoom, click-to-select
- * - Renders nodes as colored circles, edges as styled paths
+ * - Interactive pan, zoom, click-to-select, double-click-to-expand
+ * - Compound graph: expanded nodes reveal children inline with group boundaries
+ * - Cluster force keeps children grouped around their parent's position
  *
  * Agent Instructions:
- * - Uses D3-force for layout simulation
- * - SVG rendering for crisp edges and text
- * - Subscribes to Zustand store for data and selection state
+ * - Uses D3-force for layout simulation with custom cluster force
+ * - SVG rendering for crisp edges, text, and group boundaries
+ * - Subscribes to Zustand store for data, selection, and expansion state
+ * - Double-click fetches children via resolveChildrenForNode, caches, and re-renders
  */
 import { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import {
@@ -23,15 +25,18 @@ import {
 } from 'd3-force'
 import { useControlStore } from '../../store/control-store'
 import { NODE_TYPE_COLORS, STATUS_COLORS, EDGE_TYPE_STYLES } from '../../lib/types'
+import { computeCompoundGraph, computeGroupBounds, type CompoundNode, type CompoundEdge, type GroupBoundary } from '../../lib/compound-graph'
+import { resolveChildrenForNode, isNodeExpandable } from '../../lib/expansion-api'
+import { NodeGroup2D } from './NodeGroup2D'
 import type { XmapNode, XmapEdge } from '../../lib/types'
 
 interface SimNode extends SimulationNodeDatum {
   id: string
-  node: XmapNode
+  node: CompoundNode
 }
 
 interface SimLink extends SimulationLinkDatum<SimNode> {
-  edge: XmapEdge
+  edge: CompoundEdge
 }
 
 function useFilteredGraph() {
@@ -77,7 +82,8 @@ export function Graph2D() {
   const svgRef = useRef<SVGSVGElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const { nodes, edges } = useFilteredGraph()
+  const { nodes: baseNodes, edges: baseEdges } = useFilteredGraph()
+  const config = useControlStore((s) => s.config)
   const selectedNodeId = useControlStore((s) => s.selectedNodeId)
   const selectedEdgeId = useControlStore((s) => s.selectedEdgeId)
   const hoveredNodeId = useControlStore((s) => s.hoveredNodeId)
@@ -87,11 +93,37 @@ export function Graph2D() {
   const setHoveredNode = useControlStore((s) => s.setHoveredNode)
   const expandNode = useControlStore((s) => s.expandNode)
 
+  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
+  const expansionCache = useControlStore((s) => s.expansionCache)
+  const toggleInlineExpansion = useControlStore((s) => s.toggleInlineExpansion)
+  const collapseInlineNode = useControlStore((s) => s.collapseInlineNode)
+  const setExpansionCache = useControlStore((s) => s.setExpansionCache)
+
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
   const [containerSize, setContainerSize] = useState({ width: 900, height: 600 })
   const isDragging = useRef(false)
   const lastMouse = useRef({ x: 0, y: 0 })
+  const [expandingNodeId, setExpandingNodeId] = useState<string | null>(null)
+
+  // Compute the compound graph from base data + expansion state
+  const compound = useMemo(() =>
+    computeCompoundGraph(baseNodes, baseEdges, inlineExpandedNodeIds, expansionCache),
+    [baseNodes, baseEdges, inlineExpandedNodeIds, expansionCache]
+  )
+
+  // Also compute expandable set from config
+  const expandableNodeIds = useMemo(() => {
+    const ids = new Set(compound.expandableNodeIds)
+    if (config) {
+      for (const node of compound.nodes) {
+        if (isNodeExpandable(config, node.node_id)) {
+          ids.add(node.node_id)
+        }
+      }
+    }
+    return ids
+  }, [compound, config])
 
   useEffect(() => {
     const el = containerRef.current
@@ -104,19 +136,39 @@ export function Graph2D() {
     return () => obs.disconnect()
   }, [])
 
+  // D3 force simulation with cluster forces for expanded groups
   useEffect(() => {
-    if (nodes.length === 0) return
+    if (compound.nodes.length === 0) return
 
-    const simNodes: SimNode[] = nodes.map((n) => ({
-      id: n.node_id,
-      node: n,
-      x: containerSize.width / 2 + (Math.random() - 0.5) * 200,
-      y: containerSize.height / 2 + (Math.random() - 0.5) * 200,
-    }))
+    // Use previous positions for continuity; children start near their parent's centroid
+    const prevPositions = positions
+    const simNodes: SimNode[] = compound.nodes.map((n) => {
+      const prev = prevPositions.get(n.node_id)
+      if (prev) return { id: n.node_id, node: n, x: prev.x, y: prev.y }
+
+      // New child nodes: start at parent centroid position for fan-out animation
+      const hintId = compound.childInitialPositionHints.get(n.node_id)
+      const hintPos = hintId ? prevPositions.get(hintId) : null
+      if (hintPos) {
+        return {
+          id: n.node_id,
+          node: n,
+          x: hintPos.x + (Math.random() - 0.5) * 20,
+          y: hintPos.y + (Math.random() - 0.5) * 20,
+        }
+      }
+
+      return {
+        id: n.node_id,
+        node: n,
+        x: containerSize.width / 2 + (Math.random() - 0.5) * 200,
+        y: containerSize.height / 2 + (Math.random() - 0.5) * 200,
+      }
+    })
 
     const nodeMap = new Map(simNodes.map((n) => [n.id, n]))
 
-    const simLinks: SimLink[] = edges
+    const simLinks: SimLink[] = compound.edges
       .filter((e) => nodeMap.has(e.from_node) && nodeMap.has(e.to_node))
       .map((e) => ({
         source: e.from_node,
@@ -124,17 +176,49 @@ export function Graph2D() {
         edge: e,
       }))
 
+    // Build group centroid positions for cluster force
+    const groupCentroidMap = new Map<string, SimNode>()
+    for (const group of compound.groups) {
+      const centroidNode = nodeMap.get(group.centroidId)
+      if (centroidNode) {
+        groupCentroidMap.set(group.parentNodeId, centroidNode)
+      }
+    }
+
     const simulation = forceSimulation(simNodes)
       .force(
         'link',
         forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance(140)
+          .distance((d) => d.edge.isInternalEdge ? 70 : 140)
       )
-      .force('charge', forceManyBody().strength(-400))
+      .force('charge', forceManyBody().strength((d: SimulationNodeDatum) => {
+        const sn = d as SimNode
+        if (sn.node.isGroupCentroid) return -100
+        if (sn.node.parentGroupId) return -150
+        return -400
+      }))
       .force('center', forceCenter(containerSize.width / 2, containerSize.height / 2))
-      .force('collide', forceCollide(50))
+      .force('collide', forceCollide((d: SimulationNodeDatum) => {
+        const sn = d as SimNode
+        return sn.node.isGroupCentroid ? 5 : sn.node.parentGroupId ? 35 : 50
+      }))
       .alphaDecay(0.02)
+
+    // Cluster force: pull children toward their group centroid
+    simulation.force('cluster', () => {
+      const alpha = simulation.alpha()
+      for (const sn of simNodes) {
+        if (!sn.node.parentGroupId) continue
+        const centroid = groupCentroidMap.get(sn.node.parentGroupId)
+        if (!centroid) continue
+        const dx = (centroid.x ?? 0) - (sn.x ?? 0)
+        const dy = (centroid.y ?? 0) - (sn.y ?? 0)
+        const strength = 0.15 * alpha
+        sn.vx = (sn.vx ?? 0) + dx * strength
+        sn.vy = (sn.vy ?? 0) + dy * strength
+      }
+    })
 
     simulation.on('tick', () => {
       const next = new Map<string, { x: number; y: number }>()
@@ -147,13 +231,21 @@ export function Graph2D() {
     return () => {
       simulation.stop()
     }
-  }, [nodes, edges, containerSize])
+  }, [compound, containerSize])
+
+  // Compute group boundaries from positions
+  const groupBounds = useMemo(() => {
+    return compound.groups.map((group) => {
+      const bounds = computeGroupBounds(group.childNodeIds, positions, 45)
+      return { group, bounds }
+    }).filter((g) => g.bounds !== null) as Array<{ group: GroupBoundary; bounds: { cx: number; cy: number; radius: number } }>
+  }, [compound.groups, positions])
 
   const matchedNodeIds = useMemo(() => {
     if (!searchQuery) return new Set<string>()
     const q = searchQuery.toLowerCase()
     return new Set(
-      nodes
+      compound.nodes
         .filter(
           (n) =>
             n.name.toLowerCase().includes(q) ||
@@ -162,7 +254,7 @@ export function Graph2D() {
         )
         .map((n) => n.node_id)
     )
-  }, [nodes, searchQuery])
+  }, [compound.nodes, searchQuery])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()
@@ -197,7 +289,36 @@ export function Graph2D() {
     selectEdge(null)
   }, [selectNode, selectEdge])
 
-  const nodeRadius = (n: XmapNode) => {
+  /** Handle double-click: expand inline or collapse */
+  const handleNodeDoubleClick = useCallback(async (nodeId: string) => {
+    if (inlineExpandedNodeIds.has(nodeId)) {
+      collapseInlineNode(nodeId)
+      return
+    }
+
+    // Check if we already have cached data
+    if (expansionCache.has(nodeId)) {
+      toggleInlineExpansion(nodeId)
+      return
+    }
+
+    // Fetch children and cache them
+    setExpandingNodeId(nodeId)
+    const children = await resolveChildrenForNode(config, nodeId)
+    setExpandingNodeId(null)
+
+    if (children && children.nodes.length > 0) {
+      setExpansionCache(nodeId, { nodes: children.nodes, edges: children.edges })
+      toggleInlineExpansion(nodeId)
+    } else {
+      // No children found — fall back to side-panel expansion
+      expandNode(nodeId)
+    }
+  }, [config, inlineExpandedNodeIds, expansionCache, toggleInlineExpansion, collapseInlineNode, setExpansionCache, expandNode])
+
+  const nodeRadius = (n: CompoundNode) => {
+    if (n.isGroupCentroid) return 0
+    if (n.parentGroupId) return 18
     if (n.node_id === selectedNodeId) return 32
     if (n.node_id === hoveredNodeId) return 28
     return 24
@@ -250,8 +371,21 @@ export function Graph2D() {
         </defs>
 
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+          {/* Group boundaries (rendered behind everything) */}
+          {groupBounds.map(({ group, bounds }) => (
+            <NodeGroup2D
+              key={group.parentNodeId}
+              group={group}
+              cx={bounds.cx}
+              cy={bounds.cy}
+              radius={bounds.radius}
+              onCollapse={collapseInlineNode}
+              telemetryEndpoints={group.parentNode.telemetry_endpoints}
+            />
+          ))}
+
           {/* Edges */}
-          {edges.map((edge) => {
+          {compound.edges.map((edge) => {
             const src = positions.get(edge.from_node)
             const tgt = positions.get(edge.to_node)
             if (!src || !tgt) return null
@@ -263,13 +397,14 @@ export function Graph2D() {
               edge.to_node === selectedNodeId ||
               edge.from_node === hoveredNodeId ||
               edge.to_node === hoveredNodeId
+            const isInternal = (edge as CompoundEdge).isInternalEdge
 
             const dx = tgt.x - src.x
             const dy = tgt.y - src.y
             const len = Math.sqrt(dx * dx + dy * dy)
             const nx = len > 0 ? dx / len : 0
             const ny = len > 0 ? dy / len : 0
-            const offset = 26
+            const offset = isInternal ? 20 : 26
             const x1 = src.x + nx * offset
             const y1 = src.y + ny * offset
             const x2 = tgt.x - nx * offset
@@ -277,17 +412,18 @@ export function Graph2D() {
 
             const mx = (x1 + x2) / 2
             const my = (y1 + y2) / 2
-            const cx = mx + ny * 30
-            const cy = my - nx * 30
+            const curvature = isInternal ? 15 : 30
+            const cx = mx + ny * curvature
+            const cy = my - nx * curvature
 
             return (
               <g key={edge.edge_id}>
                 <path
                   d={`M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`}
                   stroke={style.color}
-                  strokeWidth={isSelected ? 3 : isConnected ? 2 : 1.2}
+                  strokeWidth={isSelected ? 3 : isConnected ? 2 : isInternal ? 0.8 : 1.2}
                   strokeDasharray={style.dashArray}
-                  strokeOpacity={isSelected ? 1 : isConnected ? 0.8 : 0.35}
+                  strokeOpacity={isSelected ? 1 : isConnected ? 0.8 : isInternal ? 0.5 : 0.35}
                   fill="none"
                   markerEnd={`url(#arrow-${edge.edge_type})`}
                   filter={isSelected ? 'url(#glow)' : undefined}
@@ -315,19 +451,24 @@ export function Graph2D() {
           })}
 
           {/* Nodes */}
-          {nodes.map((node) => {
+          {compound.nodes.map((node) => {
+            if (node.isGroupCentroid) return null
+
             const pos = positions.get(node.node_id)
             if (!pos) return null
 
             const isSelected = node.node_id === selectedNodeId
             const isHovered = node.node_id === hoveredNodeId
             const isSearchMatch = matchedNodeIds.has(node.node_id)
+            const isChild = !!node.parentGroupId
+            const isExpandable = expandableNodeIds.has(node.node_id)
+            const isExpanded = inlineExpandedNodeIds.has(node.node_id)
+            const isExpanding = expandingNodeId === node.node_id
             const r = nodeRadius(node)
             const typeColor = NODE_TYPE_COLORS[node.node_type] ?? '#888'
             const statusColor = STATUS_COLORS[node.status] ?? '#555'
 
-            const dimmed =
-              searchQuery && !isSearchMatch && !isSelected
+            const dimmed = searchQuery && !isSearchMatch && !isSelected
 
             return (
               <g
@@ -340,7 +481,7 @@ export function Graph2D() {
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation()
-                  expandNode(node.node_id)
+                  handleNodeDoubleClick(node.node_id)
                 }}
                 onMouseEnter={() => setHoveredNode(node.node_id)}
                 onMouseLeave={() => setHoveredNode(null)}
@@ -354,6 +495,19 @@ export function Graph2D() {
                   opacity={dimmed ? 0.15 : isSelected ? 1 : 0.6}
                   filter={isSelected || isHovered ? 'url(#glow-strong)' : 'url(#glow)'}
                 />
+
+                {/* Expandable indicator: double ring */}
+                {isExpandable && !isChild && !isExpanded && (
+                  <circle
+                    r={r + 9}
+                    fill="none"
+                    stroke={typeColor}
+                    strokeWidth={1}
+                    strokeDasharray="3 3"
+                    opacity={dimmed ? 0.1 : isHovered ? 0.7 : 0.3}
+                  />
+                )}
+
                 {/* Node body */}
                 <circle
                   r={r}
@@ -362,31 +516,55 @@ export function Graph2D() {
                   strokeWidth={isSelected ? 2.5 : 1.5}
                   opacity={dimmed ? 0.3 : 1}
                 />
+
+                {/* Loading spinner for expanding nodes */}
+                {isExpanding && (
+                  <circle
+                    r={r + 6}
+                    fill="none"
+                    stroke={typeColor}
+                    strokeWidth={2}
+                    strokeDasharray={`${Math.PI * (r + 6) * 0.3} ${Math.PI * (r + 6) * 1.7}`}
+                    opacity={0.8}
+                  >
+                    <animateTransform
+                      attributeName="transform"
+                      type="rotate"
+                      from="0"
+                      to="360"
+                      dur="1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                )}
+
                 {/* Status dot */}
                 <circle
-                  r={4}
+                  r={isChild ? 3 : 4}
                   cx={r * 0.7}
                   cy={-r * 0.7}
                   fill={statusColor}
                   opacity={dimmed ? 0.2 : 0.9}
                 />
+
                 {/* Label */}
                 <text
-                  y={r + 16}
+                  y={r + (isChild ? 12 : 16)}
                   textAnchor="middle"
                   fill={dimmed ? '#333' : 'var(--color-text-primary)'}
-                  fontSize={11}
+                  fontSize={isChild ? 9 : 11}
                   fontFamily="monospace"
                   fontWeight={isSelected ? 600 : 400}
                 >
                   {node.name}
                 </text>
+
                 {/* Type icon/abbrev */}
                 <text
                   textAnchor="middle"
                   dominantBaseline="central"
                   fill={dimmed ? '#333' : typeColor}
-                  fontSize={10}
+                  fontSize={isChild ? 8 : 10}
                   fontFamily="monospace"
                   fontWeight={600}
                 >
@@ -400,7 +578,7 @@ export function Graph2D() {
 
       {/* Bottom-left info */}
       <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
-        Drag: pan | Scroll: zoom | Click: select
+        Drag: pan | Scroll: zoom | Click: select | Double-click: expand
       </div>
     </div>
   )

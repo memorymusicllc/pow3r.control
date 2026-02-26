@@ -12,7 +12,7 @@
  * - Uses @react-three/fiber Canvas, @react-three/drei helpers
  * - Bloom creates the "Data as Light" aesthetic
  */
-import { useMemo, useRef, Suspense } from 'react'
+import { useMemo, useRef, useCallback, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Stars } from '@react-three/drei'
 import * as THREE from 'three'
@@ -28,6 +28,8 @@ import { GuardianGateMesh } from './GuardianGateMesh'
 import { TelemetryParticles } from './TelemetryParticles'
 import { CameraController } from './CameraController'
 import { useForceLayout3D } from './use-force-layout-3d'
+import { computeCompoundGraph } from '../../lib/compound-graph'
+import { resolveChildrenForNode, isNodeExpandable } from '../../lib/expansion-api'
 import type { XmapNode, XmapEdge } from '../../lib/types'
 
 function useFilteredGraph3D() {
@@ -74,7 +76,29 @@ function SceneContent() {
   const allEdges = config?.edges ?? []
   const guardianGates = config?.guardian ?? []
   const showGovernanceOverlay = useControlStore((s) => s.showGovernanceOverlay)
-  const positions = useForceLayout3D(allNodes, allEdges)
+
+  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
+  const expansionCache = useControlStore((s) => s.expansionCache)
+  const toggleInlineExpansion = useControlStore((s) => s.toggleInlineExpansion)
+  const setExpansionCache = useControlStore((s) => s.setExpansionCache)
+  const expandNode = useControlStore((s) => s.expandNode)
+  const collapseInlineNode = useControlStore((s) => s.collapseInlineNode)
+
+  const compound = useMemo(() =>
+    computeCompoundGraph(allNodes, allEdges, inlineExpandedNodeIds, expansionCache),
+    [allNodes, allEdges, inlineExpandedNodeIds, expansionCache]
+  )
+
+  const compoundNodesForLayout = useMemo(() =>
+    compound.nodes as XmapNode[],
+    [compound.nodes]
+  )
+  const compoundEdgesForLayout = useMemo(() =>
+    compound.edges as XmapEdge[],
+    [compound.edges]
+  )
+
+  const positions = useForceLayout3D(compoundNodesForLayout, compoundEdgesForLayout)
 
   const selectedNodeId = useControlStore((s) => s.selectedNodeId)
   const selectedEdgeId = useControlStore((s) => s.selectedEdgeId)
@@ -83,6 +107,36 @@ function SceneContent() {
   const selectNode = useControlStore((s) => s.selectNode)
   const selectEdge = useControlStore((s) => s.selectEdge)
   const setHoveredNode = useControlStore((s) => s.setHoveredNode)
+
+  const expandableNodeIds = useMemo(() => {
+    const ids = new Set(compound.expandableNodeIds)
+    if (config) {
+      for (const node of compound.nodes) {
+        if (isNodeExpandable(config, node.node_id)) {
+          ids.add(node.node_id)
+        }
+      }
+    }
+    return ids
+  }, [compound, config])
+
+  const handleNodeDoubleClick = useCallback(async (nodeId: string) => {
+    if (inlineExpandedNodeIds.has(nodeId)) {
+      collapseInlineNode(nodeId)
+      return
+    }
+    if (expansionCache.has(nodeId)) {
+      toggleInlineExpansion(nodeId)
+      return
+    }
+    const children = await resolveChildrenForNode(config, nodeId)
+    if (children && children.nodes.length > 0) {
+      setExpansionCache(nodeId, { nodes: children.nodes, edges: children.edges })
+      toggleInlineExpansion(nodeId)
+    } else {
+      expandNode(nodeId)
+    }
+  }, [config, inlineExpandedNodeIds, expansionCache, toggleInlineExpansion, collapseInlineNode, setExpansionCache, expandNode])
 
   const gatePositions = useMemo(() => {
     if (!showGovernanceOverlay || guardianGates.length === 0) return []
@@ -108,7 +162,7 @@ function SceneContent() {
     if (!searchQuery) return new Set<string>()
     const q = searchQuery.toLowerCase()
     return new Set(
-      allNodes
+      compound.nodes
         .filter(
           (n) =>
             n.name.toLowerCase().includes(q) ||
@@ -117,12 +171,13 @@ function SceneContent() {
         )
         .map((n) => n.node_id)
     )
-  }, [allNodes, searchQuery])
+  }, [compound.nodes, searchQuery])
 
   return (
     <>
       {/* Nodes */}
-      {allNodes.map((node) => {
+      {compound.nodes.map((node) => {
+        if (node.isGroupCentroid) return null
         const pos = positions.get(node.node_id)
         if (!pos) return null
 
@@ -131,7 +186,7 @@ function SceneContent() {
         const isHovered = node.node_id === hoveredNodeId
         const isDimmed = searchQuery
           ? !matchedNodeIds.has(node.node_id) && !isSelected
-          : !isVisible
+          : !isVisible && !node.parentGroupId
 
         return (
           <NodeMesh
@@ -141,7 +196,10 @@ function SceneContent() {
             isSelected={isSelected}
             isHovered={isHovered}
             isDimmed={isDimmed}
+            isExpandable={expandableNodeIds.has(node.node_id)}
+            isChild={!!node.parentGroupId}
             onClick={() => selectNode(node.node_id)}
+            onDoubleClick={() => handleNodeDoubleClick(node.node_id)}
             onPointerEnter={() => setHoveredNode(node.node_id)}
             onPointerLeave={() => setHoveredNode(null)}
           />
@@ -158,7 +216,7 @@ function SceneContent() {
       ))}
 
       {/* Edges */}
-      {allEdges.map((edge) => {
+      {compound.edges.map((edge) => {
         const srcPos = positions.get(edge.from_node)
         const tgtPos = positions.get(edge.to_node)
         if (!srcPos || !tgtPos) return null

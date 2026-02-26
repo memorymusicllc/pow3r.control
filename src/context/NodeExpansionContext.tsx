@@ -2,9 +2,12 @@
  * pow3r.control - Node Expansion Context
  *
  * Purpose:
- * - Manages recursive expansion state (breadcrumb stack)
+ * - Manages recursive expansion state (breadcrumb stack) for the side panel
  * - Provides expansion data: sub-nodes, workflows, MCP tools, X-System events
  * - Used by ExpandedNodeView and BreadcrumbTrail
+ * - Coexists with in-graph expansion (inlineExpandedNodeIds in store)
+ *   Side panel: expandedNodeId (single) for detailed view
+ *   In-graph: inlineExpandedNodeIds (multiple) for compound graph rendering
  */
 import {
   createContext,
@@ -41,7 +44,7 @@ export interface ExpansionData {
 }
 
 interface NodeExpansionContextValue {
-  /** Current expansion stack (node IDs from root to current) */
+  /** Current expansion stack (node IDs from root to current) for side panel */
   expansionStack: string[]
   /** Push a node onto the stack (drill down) */
   pushExpansion: (nodeId: string) => void
@@ -57,6 +60,8 @@ interface NodeExpansionContextValue {
   expansionData: ExpansionData | null
   /** Loading state for async fetches */
   isLoading: boolean
+  /** Set of node IDs currently expanded inline in the graph */
+  inlineExpandedNodeIds: Set<string>
 }
 
 const NodeExpansionContext = createContext<NodeExpansionContextValue | null>(null)
@@ -65,6 +70,7 @@ export function NodeExpansionProvider({ children }: { children: ReactNode }) {
   const config = useControlStore((s) => s.config)
   const expandedNodeId = useControlStore((s) => s.expandedNodeId)
   const expandNode = useControlStore((s) => s.expandNode)
+  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
 
   const [expansionStack, setExpansionStack] = useState<string[]>([])
   const [mcpTools, setMcpTools] = useState<McpToolSummary[]>([])
@@ -184,8 +190,9 @@ export function NodeExpansionProvider({ children }: { children: ReactNode }) {
       currentExpandedId: expandedNodeId ?? (expansionStack.length > 0 ? expansionStack[expansionStack.length - 1] : null),
       expansionData,
       isLoading,
+      inlineExpandedNodeIds,
     }),
-    [expansionStack, expandedNodeId, pushExpansion, popExpansion, clearExpansion, goToExpansion, expansionData, isLoading]
+    [expansionStack, expandedNodeId, pushExpansion, popExpansion, clearExpansion, goToExpansion, expansionData, isLoading, inlineExpandedNodeIds]
   )
 
   return (

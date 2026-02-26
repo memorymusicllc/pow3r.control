@@ -4,7 +4,12 @@
  * Purpose:
  * - Fetches expansion data for recursive node drill-down
  * - XMAP sub-nodes (from edges), workflows referencing node, MCP tools, X-System events
- * - Used by NodeExpansionProvider and ExpandedNodeView
+ * - Used by NodeExpansionProvider, ExpandedNodeView, and in-graph compound expansion
+ *
+ * Agent Instructions:
+ * - resolveChildrenForNode checks local config edges first (no network call)
+ * - Falls back to remote API for cross-config expansion (repo-level nodes)
+ * - Results should be cached in the store's expansionCache
  */
 import type { XmapNode, XmapEdge, XmapWorkflow, XmapV7Config } from './types'
 import type { XStreamEvent } from './x-system-types'
@@ -36,6 +41,96 @@ export async function fetchExpansionFailures(nodeId: string): Promise<{ nodeFail
     return null
   }
 }
+
+/**
+ * Resolve children for a node, checking local config first then remote API.
+ *
+ * Local resolution: finds nodes connected via outgoing edges from the parent.
+ * Remote resolution: fetches sub-graph from expansion API for cross-config nodes.
+ *
+ * Returns null if the node has no expandable children.
+ */
+export async function resolveChildrenForNode(
+  config: XmapV7Config | null,
+  nodeId: string,
+): Promise<{ nodes: XmapNode[]; edges: XmapEdge[] } | null> {
+  // Try local resolution first: find nodes connected by outgoing edges from this parent
+  if (config) {
+    const localResult = getLocalChildren(config, nodeId)
+    if (localResult.nodes.length > 0) {
+      return localResult
+    }
+  }
+
+  // Fall back to remote API for repo-level / cross-config expansion
+  const remoteResult = await fetchExpansionSubgraph(nodeId)
+  if (remoteResult && remoteResult.nodes.length > 0) {
+    return { nodes: remoteResult.nodes, edges: remoteResult.edges }
+  }
+
+  return null
+}
+
+/**
+ * Get children from the local config by examining outgoing edges.
+ * A child is a node reached via an outgoing edge from the parent where the
+ * parent is the `from_node`. Includes all edges among those children.
+ */
+export function getLocalChildren(
+  config: XmapV7Config,
+  nodeId: string,
+): { nodes: XmapNode[]; edges: XmapEdge[] } {
+  const childIds = new Set<string>()
+
+  for (const e of config.edges) {
+    if (e.from_node === nodeId) {
+      childIds.add(e.to_node)
+    }
+  }
+
+  if (childIds.size === 0) return { nodes: [], edges: [] }
+
+  const nodes = config.nodes.filter((n) => childIds.has(n.node_id))
+
+  // Collect edges among the children + edges from parent to children
+  const edgeSet = new Set<string>()
+  const edges: XmapEdge[] = []
+  for (const e of config.edges) {
+    const fromInGroup = childIds.has(e.from_node) || e.from_node === nodeId
+    const toInGroup = childIds.has(e.to_node) || e.to_node === nodeId
+    if (fromInGroup && toInGroup && !edgeSet.has(e.edge_id)) {
+      edgeSet.add(e.edge_id)
+      edges.push(e)
+    }
+  }
+
+  return { nodes, edges }
+}
+
+/**
+ * Check if a node is expandable (has children locally or is a known remote-expandable node).
+ */
+export function isNodeExpandable(
+  config: XmapV7Config | null,
+  nodeId: string,
+): boolean {
+  if (config) {
+    for (const e of config.edges) {
+      if (e.from_node === nodeId) return true
+    }
+  }
+  return KNOWN_EXPANDABLE_NODES.has(nodeId)
+}
+
+const KNOWN_EXPANDABLE_NODES = new Set([
+  'pow3r-writer', 'pow3r.writer',
+  'pow3r-control', 'pow3r.control',
+  'pimp', 'pkg',
+  'x-system', 'guardian-system',
+  'pow3r-config', 'pow3r-pass',
+  'workflow-executor', 'component-factory',
+  'director-agent', 'plan-memory',
+])
 
 /** Sub-nodes: nodes connected via edges (both directions) */
 export function getSubNodesForNode(

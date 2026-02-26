@@ -22,7 +22,10 @@ interface NodeMeshProps {
   isSelected: boolean
   isHovered: boolean
   isDimmed: boolean
+  isExpandable?: boolean
+  isChild?: boolean
   onClick: () => void
+  onDoubleClick?: () => void
   onPointerEnter: () => void
   onPointerLeave: () => void
 }
@@ -35,18 +38,23 @@ export function NodeMesh({
   isSelected,
   isHovered,
   isDimmed,
+  isExpandable,
+  isChild,
   onClick,
+  onDoubleClick,
   onPointerEnter,
   onPointerLeave,
 }: NodeMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null)
   const glowRef = useRef<THREE.Mesh>(null)
   const [pulsePhase] = useState(() => Math.random() * Math.PI * 2)
+  const lastClickTime = useRef(0)
 
   const typeColor = new THREE.Color(NODE_TYPE_COLORS[node.node_type] ?? '#888888')
   const statusColor = new THREE.Color(STATUS_COLORS[node.status] ?? '#555566')
 
-  const baseScale = isSelected ? 1.4 : isHovered ? 1.2 : 1.0
+  const childScale = isChild ? 0.7 : 1.0
+  const baseScale = (isSelected ? 1.4 : isHovered ? 1.2 : 1.0) * childScale
   const opacity = isDimmed ? 0.15 : 1.0
 
   useFrame(({ clock }) => {
@@ -96,7 +104,17 @@ export function NodeMesh({
       {/* Main node mesh */}
       <mesh
         ref={meshRef}
-        onClick={(e) => { e.stopPropagation(); onClick() }}
+        onClick={(e) => {
+          e.stopPropagation()
+          const now = Date.now()
+          if (onDoubleClick && now - lastClickTime.current < 350) {
+            onDoubleClick()
+            lastClickTime.current = 0
+          } else {
+            lastClickTime.current = now
+            onClick()
+          }
+        }}
         onPointerEnter={(e) => { e.stopPropagation(); onPointerEnter() }}
         onPointerLeave={onPointerLeave}
       >
@@ -118,6 +136,18 @@ export function NodeMesh({
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[NODE_SCALE * 1.8, 0.15, 8, 32]} />
           <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+        </mesh>
+      )}
+
+      {/* Expandable indicator: dashed outer ring */}
+      {isExpandable && !isChild && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[NODE_SCALE * 2.2, 0.08, 8, 24]} />
+          <meshBasicMaterial
+            color={typeColor}
+            transparent
+            opacity={isDimmed ? 0.05 : isHovered ? 0.5 : 0.2}
+          />
         </mesh>
       )}
 

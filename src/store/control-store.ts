@@ -24,6 +24,12 @@ import type {
   NodeStatus,
 } from '../lib/types'
 
+/** Cached sub-graph data for an expanded node */
+export interface ExpansionCacheEntry {
+  nodes: XmapNode[]
+  edges: XmapEdge[]
+}
+
 interface ControlState {
   config: XmapV7Config | null
   isLoading: boolean
@@ -36,6 +42,11 @@ interface ControlState {
   selectedEdgeId: string | null
   expandedNodeId: string | null
   hoveredNodeId: string | null
+
+  /** In-graph expansion: set of node IDs currently expanded inline */
+  inlineExpandedNodeIds: Set<string>
+  /** Cached sub-graph data keyed by parent node ID */
+  expansionCache: Map<string, ExpansionCacheEntry>
 
   searchQuery: string
   filterNodeTypes: Set<NodeType>
@@ -81,6 +92,15 @@ interface ControlState {
   expandWorkflow: (workflowId: string | null) => void
   popWorkflowBreadcrumb: () => void
   toggleGovernanceOverlay: () => void
+
+  /** Toggle a node's in-graph expansion (expand if collapsed, collapse if expanded) */
+  toggleInlineExpansion: (nodeId: string) => void
+  /** Collapse a specific node's in-graph expansion */
+  collapseInlineNode: (nodeId: string) => void
+  /** Collapse all in-graph expansions */
+  collapseAllInline: () => void
+  /** Store fetched sub-graph data for a node */
+  setExpansionCache: (nodeId: string, data: ExpansionCacheEntry) => void
 }
 
 // Selectors (derived data)
@@ -163,6 +183,9 @@ export const useControlStore = create<ControlState>((set) => ({
   selectedEdgeId: null,
   expandedNodeId: null,
   hoveredNodeId: null,
+
+  inlineExpandedNodeIds: new Set<string>(),
+  expansionCache: new Map<string, ExpansionCacheEntry>(),
 
   searchQuery: '',
   filterNodeTypes: new Set(),
@@ -272,4 +295,37 @@ export const useControlStore = create<ControlState>((set) => ({
 
   toggleGovernanceOverlay: () =>
     set((state) => ({ showGovernanceOverlay: !state.showGovernanceOverlay })),
+
+  toggleInlineExpansion: (nodeId) =>
+    set((state) => {
+      const next = new Set(state.inlineExpandedNodeIds)
+      if (next.has(nodeId)) {
+        next.delete(nodeId)
+      } else {
+        next.add(nodeId)
+      }
+      return { inlineExpandedNodeIds: next }
+    }),
+
+  collapseInlineNode: (nodeId) =>
+    set((state) => {
+      const next = new Set(state.inlineExpandedNodeIds)
+      next.delete(nodeId)
+      const cache = new Map(state.expansionCache)
+      cache.delete(nodeId)
+      return { inlineExpandedNodeIds: next, expansionCache: cache }
+    }),
+
+  collapseAllInline: () =>
+    set({
+      inlineExpandedNodeIds: new Set<string>(),
+      expansionCache: new Map<string, ExpansionCacheEntry>(),
+    }),
+
+  setExpansionCache: (nodeId, data) =>
+    set((state) => {
+      const cache = new Map(state.expansionCache)
+      cache.set(nodeId, data)
+      return { expansionCache: cache }
+    }),
 }))
