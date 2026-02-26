@@ -18,6 +18,8 @@ import {
 import { useControlStore } from '../store/control-store'
 import { useXSystemStore } from '../store/x-system-store'
 import {
+  fetchExpansionSubgraph,
+  fetchExpansionFailures,
   getSubNodesForNode,
   getWorkflowsForNode,
   filterEventsByNode,
@@ -34,6 +36,8 @@ export interface ExpansionData {
   workflows: XmapWorkflow[]
   events: XStreamEvent[]
   mcpTools: McpToolSummary[]
+  subgraph?: { nodes: XmapNode[]; edges: XmapEdge[] }
+  failures?: { nodeFailures: any[]; edgeFailures: any[]; xFilesCases: any[] }
 }
 
 interface NodeExpansionContextValue {
@@ -64,6 +68,8 @@ export function NodeExpansionProvider({ children }: { children: ReactNode }) {
 
   const [expansionStack, setExpansionStack] = useState<string[]>([])
   const [mcpTools, setMcpTools] = useState<McpToolSummary[]>([])
+  const [subgraph, setSubgraph] = useState<{ nodes: XmapNode[]; edges: XmapEdge[] } | undefined>()
+  const [failures, setFailures] = useState<{ nodeFailures: any[]; edgeFailures: any[]; xFilesCases: any[] } | undefined>()
   const [isLoading, setIsLoading] = useState(false)
 
   const currentExpandedId = expandedNodeId ?? (expansionStack.length > 0 ? expansionStack[expansionStack.length - 1] : null)
@@ -84,13 +90,17 @@ export function NodeExpansionProvider({ children }: { children: ReactNode }) {
       workflows,
       events,
       mcpTools,
+      subgraph,
+      failures,
     }
-  }, [config, expandedNodeId, currentExpandedId, xEvents, mcpTools])
+  }, [config, expandedNodeId, currentExpandedId, xEvents, mcpTools, subgraph, failures])
 
   useEffect(() => {
     if (!expandedNodeId) {
       setExpansionStack([])
       setMcpTools([])
+      setSubgraph(undefined)
+      setFailures(undefined)
       return
     }
     setExpansionStack((prev) => {
@@ -107,15 +117,27 @@ export function NodeExpansionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const nodeId = expandedNodeId ?? currentExpandedId
     if (!nodeId) return
-    const servers = getMcpServersForNode(nodeId)
-    if (servers.length === 0) {
-      setMcpTools([])
-      return
-    }
+    
     setIsLoading(true)
-    Promise.all(servers.map((s) => fetchMcpToolsForServer(s)))
-      .then((results) => {
-        setMcpTools(results.flat())
+    
+    // Reset async data
+    setMcpTools([])
+    setSubgraph(undefined)
+    setFailures(undefined)
+
+    const servers = getMcpServersForNode(nodeId)
+    const mcpPromise = servers.length > 0 
+      ? Promise.all(servers.map((s) => fetchMcpToolsForServer(s))).then(results => results.flat())
+      : Promise.resolve([])
+
+    const subgraphPromise = fetchExpansionSubgraph(nodeId)
+    const failuresPromise = fetchExpansionFailures(nodeId)
+
+    Promise.all([mcpPromise, subgraphPromise, failuresPromise])
+      .then(([tools, sub, fail]) => {
+        setMcpTools(tools)
+        if (sub) setSubgraph(sub)
+        if (fail) setFailures(fail)
       })
       .finally(() => setIsLoading(false))
   }, [expandedNodeId, currentExpandedId])

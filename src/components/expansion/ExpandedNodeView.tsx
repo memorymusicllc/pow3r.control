@@ -9,6 +9,7 @@
 import { useNodeExpansion } from '../../context/NodeExpansionContext'
 import { useControlStore } from '../../store/control-store'
 import { NODE_TYPE_COLORS, STATUS_COLORS } from '../../lib/types'
+import { SubGraph2D } from '../graph/SubGraph2D'
 import type { XmapNode } from '../../lib/types'
 import type { XStreamEvent } from '../../lib/x-system-types'
 
@@ -24,10 +25,16 @@ export function ExpandedNodeView() {
 
   const typeColor = NODE_TYPE_COLORS[node.node_type] ?? '#888'
 
+  const hasFailures = expansionData?.failures && (
+    expansionData.failures.nodeFailures.length > 0 || 
+    expansionData.failures.edgeFailures.length > 0 || 
+    expansionData.failures.xFilesCases.length > 0
+  )
+
   return (
-    <div className="absolute top-0 left-0 w-96 max-w-[90vw] h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)] overflow-y-auto z-25 shadow-xl">
+    <div className="absolute top-0 left-0 w-96 max-w-[90vw] h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)] overflow-y-auto z-25 shadow-xl flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] p-3 z-10">
+      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] p-3 z-10 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
@@ -59,7 +66,76 @@ export function ExpandedNodeView() {
         <code className="text-[10px] text-[var(--color-text-muted)]">{node.node_id}</code>
       </div>
 
-      <div className="p-3 space-y-4">
+      <div className="p-3 space-y-4 flex-1 overflow-y-auto">
+        {/* SubGraph Visualization (Data Flow) */}
+        {expansionData?.subgraph && (
+          <Section title="Data Flow">
+            <SubGraph2D
+              nodes={expansionData.subgraph.nodes}
+              edges={expansionData.subgraph.edges}
+              failures={expansionData.failures}
+              onNodeClick={(id) => pushExpansion(id)}
+            />
+          </Section>
+        )}
+
+        {/* Failures & X-Files */}
+        {hasFailures && expansionData?.failures && (
+          <Section title="Active Failures">
+            <div className="space-y-2">
+              {expansionData.failures.nodeFailures.map((f, i) => (
+                <div key={i} className="p-2 rounded bg-[var(--color-error)]/10 border border-[var(--color-error)]/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-[var(--color-error)] font-bold">
+                      {f.source.toUpperCase()}
+                    </span>
+                    <span className="text-[9px] font-mono text-[var(--color-text-muted)]">
+                      {f.severity}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-primary)] mb-1">
+                    {f.issue.title || f.issue.id}
+                  </p>
+                  <p className="text-[10px] text-[var(--color-text-secondary)] mb-2">
+                    {f.issue.description}
+                  </p>
+                  {f.suggestedAction && (
+                    <div className="text-[10px] bg-[var(--color-bg-deep)] p-1.5 rounded border border-[var(--color-border)]">
+                      <span className="text-[var(--color-success)] font-bold">Fix: </span>
+                      <span className="text-[var(--color-text-secondary)]">{f.suggestedAction}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {expansionData.failures.xFilesCases.map((c) => (
+                <div key={c.xid} className="p-2 rounded bg-[var(--color-amber)]/10 border border-[var(--color-amber)]/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-mono text-[var(--color-amber)] font-bold">
+                      X-FILE
+                    </span>
+                    <span className="text-[9px] font-mono text-[var(--color-text-muted)]">
+                      {c.xid}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[var(--color-text-primary)] mb-1">
+                    {c.title}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <button className="flex-1 py-1 bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded text-[9px] font-mono text-[var(--color-text-secondary)]">
+                      View Case
+                    </button>
+                    {c.selfHealing?.enabled && (
+                      <button className="flex-1 py-1 bg-[var(--color-cyan)]/20 hover:bg-[var(--color-cyan)]/30 border border-[var(--color-cyan)]/30 rounded text-[9px] font-mono text-[var(--color-cyan)]">
+                        Auto-Heal
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        )}
+
         {/* Workflows */}
         {expansionData && expansionData.workflows.length > 0 && (
           <Section title={`Workflows (${expansionData.workflows.length})`}>

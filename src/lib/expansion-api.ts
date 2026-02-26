@@ -11,6 +11,32 @@ import type { XStreamEvent } from './x-system-types'
 
 const API_BASE = 'https://config.superbots.link/api'
 
+/** Fetch expansion subgraph from API (Deep Expansion) */
+export async function fetchExpansionSubgraph(nodeId: string): Promise<{ nodes: XmapNode[]; edges: XmapEdge[]; rootNodeId?: string } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/expansion/subgraph/${nodeId}`)
+    if (!res.ok) return null
+    const json = await res.json()
+    if (!json.success || !json.data) return null
+    return json.data
+  } catch {
+    return null
+  }
+}
+
+/** Fetch expansion failures from API (Deep Expansion) */
+export async function fetchExpansionFailures(nodeId: string): Promise<{ nodeFailures: any[]; edgeFailures: any[]; xFilesCases: any[] } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/expansion/failures/${nodeId}`)
+    if (!res.ok) return null
+    const json = await res.json()
+    if (!json.success || !json.data) return null
+    return json.data
+  } catch {
+    return null
+  }
+}
+
 /** Sub-nodes: nodes connected via edges (both directions) */
 export function getSubNodesForNode(
   config: XmapV7Config,
