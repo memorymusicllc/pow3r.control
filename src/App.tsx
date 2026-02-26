@@ -16,6 +16,7 @@ import { useControlStore } from './store/control-store'
 import { SAMPLE_CONFIG } from './lib/sample-data'
 import { Graph2D } from './components/graph/Graph2D'
 import { Graph3D } from './components/graph/Graph3D'
+import { TimelineView } from './components/graph/TimelineView'
 import { NodeDetail } from './components/panels/NodeDetail'
 import { EdgeDetail } from './components/panels/EdgeDetail'
 import { MapKey } from './components/panels/MapKey'
@@ -24,6 +25,7 @@ import { WorkflowExpander } from './components/panels/WorkflowExpander'
 import { TelemetryStream } from './components/panels/TelemetryStream'
 import { XFilesPanel } from './components/panels/XFilesPanel'
 import { DashboardGrid } from './components/dashboard/DashboardGrid'
+import { ConfigSelector } from './components/controls/ConfigSelector'
 import { SearchBar } from './components/controls/SearchBar'
 import { ViewSwitcher } from './components/controls/ViewSwitcher'
 import { ControlSurface } from './components/controls/ControlSurface'
@@ -98,6 +100,7 @@ export default function App() {
               {config.manifest.manifest_status}
             </span>
           )}
+          <ConfigSelector />
         </div>
 
         <div className="flex items-center gap-3">
@@ -121,13 +124,7 @@ export default function App() {
       <main className="flex-1 relative overflow-hidden">
         {viewMode === '2d' && <Graph2D />}
         {viewMode === '3d' && <Graph3D />}
-        {viewMode === 'timeline' && (
-          <div className="w-full h-full flex items-center justify-center">
-            <p className="font-mono text-xs text-[var(--color-text-muted)]">
-              Timeline view coming in Phase 4
-            </p>
-          </div>
-        )}
+        {viewMode === 'timeline' && <TimelineView />}
         {viewMode === 'dashboard' && <DashboardGrid />}
 
         {/* Governance panels */}
