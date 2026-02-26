@@ -1,0 +1,13 @@
+# pow3r.control - Cloudflare Pages Configuration
+#
+# Deploy: npx wrangler pages deploy dist --project-name=pow3r-control
+# Uses OAuth (no API token in env)
+
+name = "pow3r-control"
+compatibility_date = "2025-12-01"
+
+[site]
+bucket = "./dist"
+
+# Pages-specific settings applied via wrangler pages deploy
+# Custom domain: control.pow3r.link (configured in Cloudflare dashboard)
