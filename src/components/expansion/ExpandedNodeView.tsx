@@ -17,6 +17,8 @@ export function ExpandedNodeView() {
   const { currentExpandedId, expansionData, expansionStack, clearExpansion, pushExpansion, popExpansion } = useNodeExpansion()
   const config = useControlStore((s) => s.config)
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
+  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
+  const collapseInlineNode = useControlStore((s) => s.collapseInlineNode)
 
   if (!config || !currentExpandedId) return null
 
@@ -52,6 +54,15 @@ export function ExpandedNodeView() {
                 className="font-mono text-[9px] px-2 py-0.5 text-[var(--color-cyan)] hover:bg-[var(--color-bg-card)] rounded"
               >
                 back
+              </button>
+            )}
+            {inlineExpandedNodeIds.has(currentExpandedId) && (
+              <button
+                onClick={() => collapseInlineNode(currentExpandedId)}
+                className="font-mono text-[9px] px-2 py-0.5 text-[var(--color-amber)] hover:bg-[var(--color-bg-card)] rounded border border-[var(--color-amber)]/30"
+                title="Collapse inline expansion in graph"
+              >
+                collapse
               </button>
             )}
             <button

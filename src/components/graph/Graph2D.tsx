@@ -137,32 +137,34 @@ export function Graph2D() {
   }, [])
 
   // D3 force simulation with cluster forces for expanded groups
+  // Use ref to avoid stale closure in tick handler and to throttle renders
+  const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map())
+  const rafIdRef = useRef<number>(0)
+
   useEffect(() => {
     if (compound.nodes.length === 0) return
 
-    // Use previous positions for continuity; children start near their parent's centroid
-    const prevPositions = positions
+    const prevPositions = positionsRef.current
     const simNodes: SimNode[] = compound.nodes.map((n) => {
       const prev = prevPositions.get(n.node_id)
       if (prev) return { id: n.node_id, node: n, x: prev.x, y: prev.y }
 
-      // New child nodes: start at parent centroid position for fan-out animation
       const hintId = compound.childInitialPositionHints.get(n.node_id)
       const hintPos = hintId ? prevPositions.get(hintId) : null
       if (hintPos) {
         return {
           id: n.node_id,
           node: n,
-          x: hintPos.x + (Math.random() - 0.5) * 20,
-          y: hintPos.y + (Math.random() - 0.5) * 20,
+          x: hintPos.x + (Math.random() - 0.5) * 30,
+          y: hintPos.y + (Math.random() - 0.5) * 30,
         }
       }
 
       return {
         id: n.node_id,
         node: n,
-        x: containerSize.width / 2 + (Math.random() - 0.5) * 200,
-        y: containerSize.height / 2 + (Math.random() - 0.5) * 200,
+        x: containerSize.width / 2 + (Math.random() - 0.5) * 300,
+        y: containerSize.height / 2 + (Math.random() - 0.5) * 300,
       }
     })
 
@@ -176,7 +178,6 @@ export function Graph2D() {
         edge: e,
       }))
 
-    // Build group centroid positions for cluster force
     const groupCentroidMap = new Map<string, SimNode>()
     for (const group of compound.groups) {
       const centroidNode = nodeMap.get(group.centroidId)
@@ -190,22 +191,21 @@ export function Graph2D() {
         'link',
         forceLink<SimNode, SimLink>(simLinks)
           .id((d) => d.id)
-          .distance((d) => d.edge.isInternalEdge ? 70 : 140)
+          .distance((d) => d.edge.isInternalEdge ? 80 : 180)
       )
       .force('charge', forceManyBody().strength((d: SimulationNodeDatum) => {
         const sn = d as SimNode
-        if (sn.node.isGroupCentroid) return -100
-        if (sn.node.parentGroupId) return -150
-        return -400
+        if (sn.node.isGroupCentroid) return -200
+        if (sn.node.parentGroupId) return -300
+        return -600
       }))
       .force('center', forceCenter(containerSize.width / 2, containerSize.height / 2))
       .force('collide', forceCollide((d: SimulationNodeDatum) => {
         const sn = d as SimNode
-        return sn.node.isGroupCentroid ? 5 : sn.node.parentGroupId ? 35 : 50
-      }))
-      .alphaDecay(0.02)
+        return sn.node.isGroupCentroid ? 10 : sn.node.parentGroupId ? 50 : 70
+      }).iterations(2))
+      .alphaDecay(0.025)
 
-    // Cluster force: pull children toward their group centroid
     simulation.force('cluster', () => {
       const alpha = simulation.alpha()
       for (const sn of simNodes) {
@@ -214,22 +214,32 @@ export function Graph2D() {
         if (!centroid) continue
         const dx = (centroid.x ?? 0) - (sn.x ?? 0)
         const dy = (centroid.y ?? 0) - (sn.y ?? 0)
-        const strength = 0.15 * alpha
+        const strength = 0.12 * alpha
         sn.vx = (sn.vx ?? 0) + dx * strength
         sn.vy = (sn.vy ?? 0) + dy * strength
       }
     })
 
+    // Throttle React state updates via requestAnimationFrame to avoid render storms
+    let pendingUpdate = false
     simulation.on('tick', () => {
       const next = new Map<string, { x: number; y: number }>()
       simNodes.forEach((n) => {
         next.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 })
       })
-      setPositions(new Map(next))
+      positionsRef.current = next
+      if (!pendingUpdate) {
+        pendingUpdate = true
+        rafIdRef.current = requestAnimationFrame(() => {
+          pendingUpdate = false
+          setPositions(new Map(positionsRef.current))
+        })
+      }
     })
 
     return () => {
       simulation.stop()
+      cancelAnimationFrame(rafIdRef.current)
     }
   }, [compound, containerSize])
 

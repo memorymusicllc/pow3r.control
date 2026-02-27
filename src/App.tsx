@@ -60,6 +60,8 @@ export default function App() {
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
   const showGovernanceOverlay = useControlStore((s) => s.showGovernanceOverlay)
   const toggleGovernanceOverlay = useControlStore((s) => s.toggleGovernanceOverlay)
+  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
+  const collapseAllInline = useControlStore((s) => s.collapseAllInline)
 
   const isXConnected = useXSystemStore((s) => s.isConnected)
   const xEventCount = useXSystemStore((s) => s.eventCount)
@@ -274,6 +276,15 @@ export default function App() {
         <ViewSwitcher />
 
         <div className="flex items-center gap-3">
+          {inlineExpandedNodeIds.size > 0 && (
+            <button
+              onClick={collapseAllInline}
+              className="font-mono text-[9px] px-2 py-1 rounded transition-colors text-[var(--color-amber)] bg-[var(--color-bg-card)] hover:bg-[var(--color-amber)]/20 border border-[var(--color-amber)]/30"
+              title={`Collapse ${inlineExpandedNodeIds.size} expanded node${inlineExpandedNodeIds.size > 1 ? 's' : ''}`}
+            >
+              Collapse All ({inlineExpandedNodeIds.size})
+            </button>
+          )}
           {config.compliance.compliance_score !== undefined && (
             <div className="flex items-center gap-1.5">
               <span className="font-mono text-[9px] text-[var(--color-text-muted)]">Compliance</span>
