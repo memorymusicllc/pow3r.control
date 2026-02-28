@@ -54,7 +54,7 @@ export type EvaluationPolicy = 'automated' | 'manual' | 'mixed'
 
 export type GateAction = 'block' | 'escalate' | 'auto-fix-proposal'
 
-export type ViewMode = '2d' | '3d' | 'timeline' | 'dashboard' | 'library' | 'abacus' | 'agents' | 'cursor'
+export type ViewMode = '2d' | '3d' | 'timeline' | 'dashboard' | 'library' | 'abacus' | 'agents' | 'cursor' | 'playground'
 
 export type LayoutMode = 'force-directed' | 'orbital' | 'hierarchy' | 'dagre'
 
