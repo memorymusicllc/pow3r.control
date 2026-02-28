@@ -58,6 +58,7 @@ export default function App() {
   const expandedNodeId = useControlStore((s) => s.expandedNodeId)
   const [orchestratorLiveWorkflowId, setOrchestratorLiveWorkflowId] = useState<string | null>(null)
   const [showConfigLeafViewer, setShowConfigLeafViewer] = useState(false)
+  const [showWorkflowsWidget, setShowWorkflowsWidget] = useState(true)
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
   const showGovernanceOverlay = useControlStore((s) => s.showGovernanceOverlay)
   const toggleGovernanceOverlay = useControlStore((s) => s.toggleGovernanceOverlay)
@@ -246,12 +247,21 @@ export default function App() {
         {showConfigLeafViewer && <ConfigLeafViewer onClose={() => setShowConfigLeafViewer(false)} />}
 
         {/* Workflow quick-access: show workflows from config */}
-        {config.workflows.length > 0 && !expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && (
+        {config.workflows.length > 0 && !expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && showWorkflowsWidget && (
           <div className="absolute top-2 left-2 z-10">
             <div className="bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg p-2 space-y-1">
-              <span className="font-mono text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider">
-                Workflows
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[9px] text-[var(--color-text-muted)] uppercase tracking-wider">
+                  Workflows
+                </span>
+                <button
+                  onClick={() => setShowWorkflowsWidget(false)}
+                  className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs leading-none px-1"
+                  title="Hide workflows widget"
+                >
+                  ×
+                </button>
+              </div>
               {config.workflows.map((wf) => (
                 <div key={wf.workflow_id} className="flex items-center gap-1">
                   <button
@@ -363,6 +373,17 @@ export default function App() {
             }`}
           >
             Gov
+          </button>
+
+          <button
+            onClick={() => setShowWorkflowsWidget(!showWorkflowsWidget)}
+            className={`font-mono text-[9px] px-2 py-1 rounded transition-colors ${
+              showWorkflowsWidget
+                ? 'text-[var(--color-amber)] bg-[var(--color-bg-card)]'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+            }`}
+          >
+            WF
           </button>
 
           <button
