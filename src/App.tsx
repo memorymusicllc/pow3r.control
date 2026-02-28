@@ -42,6 +42,7 @@ import { AbacusDashboard } from './components/abacus/AbacusDashboard'
 import { AgentManagement } from './components/agents/AgentManagement'
 import { CursorStatus } from './components/cursor/CursorStatus'
 import { ConfigLeafViewer } from './components/panels/ConfigLeafViewer'
+import { MCPPlayground } from './components/playground/MCPPlayground'
 
 export default function App() {
   const loadConfig = useControlStore((s) => s.loadConfig)
@@ -199,6 +200,11 @@ export default function App() {
               onRun={(id) => setOrchestratorLiveWorkflowId(id)}
               onViewLive={(id) => setOrchestratorLiveWorkflowId(id)}
             />
+          </div>
+        )}
+        {viewMode === 'playground' && (
+          <div className="w-full h-full overflow-auto">
+            <MCPPlayground />
           </div>
         )}
 

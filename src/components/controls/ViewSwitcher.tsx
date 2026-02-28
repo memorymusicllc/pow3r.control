@@ -17,6 +17,7 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string; icon: string }> = [
   { mode: 'abacus', label: 'Abacus', icon: 'M12 2a10 10 0 0110 10A10 10 0 0112 22a10 10 0 0110-10A10 10 0 0112 2z' },
   { mode: 'agents', label: 'Agents', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 108 0 4 4 0 00-8 0z' },
   { mode: 'cursor', label: 'Cursor', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122' },
+  { mode: 'playground', label: 'Playground', icon: 'M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z' },
 ]
 
 export function ViewSwitcher() {
