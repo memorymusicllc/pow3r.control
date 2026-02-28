@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-:root {
+/* Dark theme (default) - Pow3r styleguide */
+:root,
+[data-theme="dark"] {
   --color-cyan: #00E5FF;
   --color-magenta: #FF00FF;
   --color-purple: #A855F7;
@@ -16,6 +18,25 @@
   --color-text-secondary: #8888AA;
   --color-text-muted: #555566;
   --color-border: #2A2A3A;
+}
+
+/* Light theme - readable in sunlight */
+[data-theme="light"] {
+  --color-cyan: #0891B2;
+  --color-magenta: #C026D3;
+  --color-purple: #7C3AED;
+  --color-amber: #D97706;
+  --color-error: #DC2626;
+  --color-success: #059669;
+  --color-gold: #B45309;
+  --color-bg-deep: #F8FAFC;
+  --color-bg-surface: #F1F5F9;
+  --color-bg-card: #FFFFFF;
+  --color-bg-panel: #F8FAFC;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-border: #E2E8F0;
 }
 
 * {

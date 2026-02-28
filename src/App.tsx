@@ -48,6 +48,8 @@ import { MCPMonitorView } from './components/mcp-monitor/MCPMonitorView'
 import { DataKnowledgeView } from './components/data/DataKnowledgeView'
 import { OSCViewLayout } from './components/layout/OSCViewLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ThemeToggle } from './components/controls/ThemeToggle'
+import { ThemeSync } from './components/ThemeSync'
 
 export default function App() {
   const loadConfig = useControlStore((s) => s.loadConfig)
@@ -123,6 +125,7 @@ export default function App() {
 
   return (
     <NodeExpansionProvider>
+    <ThemeSync />
     <div className="w-full h-full flex flex-col bg-[var(--color-bg-deep)]">
       {/* Top bar */}
       <header className="flex items-center justify-between px-4 py-2 bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] z-30 shrink-0">
@@ -153,6 +156,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <ExpansionBreadcrumb />
           <SearchBar />
           <StatsBar config={config} />

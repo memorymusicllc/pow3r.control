@@ -28,7 +28,7 @@ export interface ConfigOption {
 export const AVAILABLE_CONFIGS: ConfigOption[] = [
   {
     id: 'pow3r-platform',
-    name: 'Pow3r Platform (sample)',
+    name: 'Pow3r Uber Master (default)',
     source: 'local',
     config: SAMPLE_CONFIG,
   },

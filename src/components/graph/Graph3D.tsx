@@ -22,6 +22,7 @@ import {
   Vignette,
 } from '@react-three/postprocessing'
 import { useControlStore } from '../../store/control-store'
+import { useThemeStore } from '../../store/theme-store'
 import { NodeMesh } from './NodeMesh'
 import { EdgeBeam } from './EdgeBeam'
 import { GuardianGateMesh } from './GuardianGateMesh'
@@ -293,6 +294,25 @@ function AmbientParticles() {
 export function Graph3D() {
   const selectNode = useControlStore((s) => s.selectNode)
   const selectEdge = useControlStore((s) => s.selectEdge)
+  const resolved = useThemeStore((s) => s.resolved)
+
+  const sceneColors = resolved === 'light'
+    ? {
+        bg: '#F8FAFC',
+        fog: '#E2E8F0',
+        fogNear: 80,
+        fogFar: 400,
+        hemisphereSky: '#94A3B8',
+        hemisphereGround: '#F1F5F9',
+      }
+    : {
+        bg: '#000003',
+        fog: '#000003',
+        fogNear: 120,
+        fogFar: 350,
+        hemisphereSky: '#000820',
+        hemisphereGround: '#000005',
+      }
 
   return (
     <div className="w-full h-full relative">
@@ -303,21 +323,23 @@ export function Graph3D() {
           selectNode(null)
           selectEdge(null)
         }}
-        style={{ background: '#000000' }}
+        style={{ background: sceneColors.bg }}
       >
-        <color attach="background" args={['#000003']} />
-        <fog attach="fog" args={['#000003', 120, 350]} />
+        <color attach="background" args={[sceneColors.bg]} />
+        <fog attach="fog" args={[sceneColors.fog, sceneColors.fogNear, sceneColors.fogFar]} />
 
         {/* Enhanced multi-point lighting for depth */}
-        <ambientLight intensity={0.08} />
+        <ambientLight intensity={resolved === 'light' ? 0.4 : 0.08} />
         <pointLight position={[60, 90, 60]} intensity={0.8} color="#00E5FF" distance={250} decay={2} />
         <pointLight position={[-60, -50, -60]} intensity={0.4} color="#FF00FF" distance={200} decay={2} />
         <pointLight position={[0, 120, 0]} intensity={0.15} color="#ffffff" distance={300} />
         <pointLight position={[-80, 30, 80]} intensity={0.2} color="#A855F7" distance={180} decay={2} />
-        <hemisphereLight args={['#000820', '#000005', 0.1]} />
+        <hemisphereLight args={[sceneColors.hemisphereSky, sceneColors.hemisphereGround, resolved === 'light' ? 0.5 : 0.1]} />
 
-        {/* Star field (PKG knowledge constellation) */}
-        <Stars radius={250} depth={80} count={3000} factor={4} saturation={0.1} fade speed={0.3} />
+        {/* Star field (PKG knowledge constellation) - hidden in light mode */}
+        {resolved === 'dark' && (
+          <Stars radius={250} depth={80} count={3000} factor={4} saturation={0.1} fade speed={0.3} />
+        )}
 
         {/* Ambient floating particles (Data-as-Light atmosphere) */}
         <AmbientParticles />
@@ -335,7 +357,7 @@ export function Graph3D() {
             mipmapBlur
             radius={0.85}
           />
-          <Vignette eskil={false} offset={0.15} darkness={0.9} />
+          <Vignette eskil={false} offset={0.15} darkness={resolved === 'light' ? 0.3 : 0.9} />
         </EffectComposer>
       </Canvas>
 
