@@ -7,11 +7,12 @@
  * - Guardian gate checkpoints, evidence indicators
  * - MCP packet viewer for current step
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useControlStore } from '../../store/control-store'
 import { useWorkflowExecutionStore } from '../../store/workflow-execution-store'
+import { fetchWorkflowView } from '../../lib/workflow-library-api'
 import { McpPacketViewer } from '../panels/McpPacketViewer'
-import type { WorkflowStep, GuardianGate } from '../../lib/types'
+import type { WorkflowStep, GuardianGate, XmapWorkflow } from '../../lib/types'
 
 interface WorkflowOrchestratorLiveProps {
   workflowId: string
@@ -25,6 +26,21 @@ function inferMcpRequest(step: WorkflowStep): { name: string; server?: string; a
   return { name: step.action, server: step.node, arguments: {} }
 }
 
+function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow | null {
+  const rawSteps = (def.steps ?? []) as Array<Record<string, unknown>>
+  const steps: WorkflowStep[] = rawSteps.map((s) => ({
+    step_id: String(s.step_id ?? s.stepId ?? s.id ?? ''),
+    node: String(s.node ?? s.server ?? 'unknown'),
+    action: String(s.action ?? s.tool ?? 'unknown'),
+  }))
+  return {
+    workflow_id: id,
+    workflow_type: (def.workflow_type ?? def.type ?? 'deployment') as XmapWorkflow['workflow_type'],
+    steps,
+    guardian_gates: (def.guardian_gates ?? []) as string[],
+  }
+}
+
 export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrchestratorLiveProps) {
   const config = useControlStore((s) => s.config)
   const executions = useWorkflowExecutionStore((s) => s.executions[workflowId] ?? [])
@@ -32,16 +48,52 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
   const stopSimulatedRun = useWorkflowExecutionStore((s) => s.stopSimulatedRun)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const [fetchedWorkflow, setFetchedWorkflow] = useState<XmapWorkflow | null>(null)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
-  const workflow = config?.workflows.find((w) => w.workflow_id === workflowId)
-  if (!config || !workflow) return null
+  const configWorkflow = config?.workflows.find((w) => w.workflow_id === workflowId)
+  const workflow = configWorkflow ?? fetchedWorkflow
+
+  useEffect(() => {
+    if (configWorkflow || !workflowId) return
+    let cancelled = false
+    fetchWorkflowView(workflowId).then((def) => {
+      if (cancelled || !def) return
+      const w = defToWorkflow(def, workflowId)
+      if (w) setFetchedWorkflow(w)
+      else setFetchError('Invalid workflow definition')
+    }).catch((err) => {
+      if (!cancelled) setFetchError(err?.message ?? 'Failed to load workflow')
+    })
+    return () => { cancelled = true }
+  }, [workflowId, configWorkflow])
+
+  if (!workflow && !fetchError) {
+    return (
+      <div className="absolute inset-0 z-30 bg-[var(--color-bg-deep)] flex flex-col items-center justify-center p-6">
+        <p className="font-mono text-sm text-[var(--color-text-muted)]">Loading workflow...</p>
+        <button onClick={onClose} className="mt-4 font-mono text-[10px] px-4 py-2 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)]">Cancel</button>
+      </div>
+    )
+  }
+
+  if (!workflow) {
+    return (
+      <div className="absolute inset-0 z-30 bg-[var(--color-bg-deep)] flex flex-col items-center justify-center p-6">
+        <p className="font-mono text-sm text-[var(--color-text-muted)]">
+          {fetchError ?? `Workflow "${workflowId}" not found.`}
+        </p>
+        <button onClick={onClose} className="mt-4 font-mono text-[10px] px-4 py-2 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)]">Close</button>
+      </div>
+    )
+  }
 
   const steps = workflow.steps ?? []
   const stepIds = steps.map((s) => s.step_id)
   const stepExecutions = new Map(executions.map((e) => [e.stepId, e]))
 
   const workflowGates = (workflow.guardian_gates ?? [])
-    .map((gId) => config.guardian.find((g) => g.gate_id === gId))
+    .map((gId) => (config?.guardian ?? []).find((g) => g.gate_id === gId))
     .filter(Boolean) as GuardianGate[]
 
   const handleStartRun = () => {

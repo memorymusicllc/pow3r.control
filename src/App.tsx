@@ -43,6 +43,11 @@ import { AgentManagement } from './components/agents/AgentManagement'
 import { CursorStatus } from './components/cursor/CursorStatus'
 import { ConfigLeafViewer } from './components/panels/ConfigLeafViewer'
 import { MCPPlayground } from './components/playground/MCPPlayground'
+import { PDAMView } from './components/pdam/PDAMView'
+import { MCPMonitorView } from './components/mcp-monitor/MCPMonitorView'
+import { DataKnowledgeView } from './components/data/DataKnowledgeView'
+import { OSCViewLayout } from './components/layout/OSCViewLayout'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 export default function App() {
   const loadConfig = useControlStore((s) => s.loadConfig)
@@ -182,12 +187,16 @@ export default function App() {
         {viewMode === 'dashboard' && <DashboardGrid />}
         {viewMode === 'abacus' && (
           <div className="w-full h-full overflow-auto">
-            <AbacusDashboard />
+            <OSCViewLayout title="Abacus">
+              <AbacusDashboard />
+            </OSCViewLayout>
           </div>
         )}
         {viewMode === 'agents' && (
           <div className="w-full h-full overflow-auto">
-            <AgentManagement />
+            <OSCViewLayout title="Agents">
+              <AgentManagement />
+            </OSCViewLayout>
           </div>
         )}
         {viewMode === 'cursor' && (
@@ -197,10 +206,14 @@ export default function App() {
         )}
         {viewMode === 'library' && (
           <div className="w-full h-full overflow-auto">
-            <WorkflowLibrary
-              onRun={(id) => setOrchestratorLiveWorkflowId(id)}
-              onViewLive={(id) => setOrchestratorLiveWorkflowId(id)}
-            />
+            <ErrorBoundary>
+              <OSCViewLayout title="Library">
+                <WorkflowLibrary
+                  onRun={(id) => setOrchestratorLiveWorkflowId(id)}
+                  onViewLive={(id) => setOrchestratorLiveWorkflowId(id)}
+                />
+              </OSCViewLayout>
+            </ErrorBoundary>
           </div>
         )}
         {viewMode === 'playground' && (
@@ -208,13 +221,48 @@ export default function App() {
             <MCPPlayground />
           </div>
         )}
+        {viewMode === 'pdam' && (
+          <div className="w-full h-full overflow-auto">
+            <OSCViewLayout title="PDAM">
+              <PDAMView />
+            </OSCViewLayout>
+          </div>
+        )}
+        {viewMode === 'mcp-monitor' && (
+          <div className="w-full h-full overflow-auto">
+            <OSCViewLayout title="MCP Monitor">
+              <MCPMonitorView />
+            </OSCViewLayout>
+          </div>
+        )}
+        {viewMode === 'data' && (
+          <div className="w-full h-full overflow-auto">
+            <OSCViewLayout title="Data & Knowledge">
+              <DataKnowledgeView />
+            </OSCViewLayout>
+          </div>
+        )}
 
         {/* Workflow Orchestrator Live (fullscreen) */}
         {orchestratorLiveWorkflowId && (
-          <WorkflowOrchestratorLive
-            workflowId={orchestratorLiveWorkflowId}
-            onClose={() => setOrchestratorLiveWorkflowId(null)}
-          />
+          <ErrorBoundary
+            fallback={
+              <div className="absolute inset-0 z-30 bg-[var(--color-bg-deep)] flex flex-col items-center justify-center p-6">
+                <p className="font-mono text-sm text-[var(--color-error)]">Workflow Live failed to load.</p>
+                <button
+                  onClick={() => setOrchestratorLiveWorkflowId(null)}
+                  className="mt-4 font-mono text-[10px] px-4 py-2 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)]"
+                >
+                  Close
+                </button>
+              </div>
+            }
+          >
+            <WorkflowOrchestratorLive
+              workflowId={orchestratorLiveWorkflowId}
+              onClose={() => setOrchestratorLiveWorkflowId(null)}
+            />
+          </ErrorBoundary>
         )}
 
         {/* Expansion panel */}
@@ -403,7 +451,8 @@ export default function App() {
   )
 }
 
-function StatsBar({ config }: { config: { nodes: unknown[]; edges: unknown[]; guardian: unknown[] } }) {
+function StatsBar({ config }: { config: { nodes: unknown[]; edges: unknown[]; guardian: unknown[]; workflows?: unknown[] } }) {
+  const workflows = config.workflows ?? []
   return (
     <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--color-text-muted)]">
       <span>
@@ -411,6 +460,9 @@ function StatsBar({ config }: { config: { nodes: unknown[]; edges: unknown[]; gu
       </span>
       <span>
         <span className="text-[var(--color-text-secondary)]">{config.edges.length}</span> edges
+      </span>
+      <span>
+        <span className="text-[var(--color-text-secondary)]">{workflows.length}</span> wf
       </span>
       <span>
         <span className="text-[var(--color-text-secondary)]">{config.guardian.length}</span> gates

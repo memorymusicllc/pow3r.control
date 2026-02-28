@@ -10,6 +10,17 @@ import { useState, useRef, useMemo, useCallback } from 'react'
 import { useControlStore } from '../../store/control-store'
 import { NODE_TYPE_COLORS } from '../../lib/types'
 
+const TYPE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'service', label: 'Service' },
+  { value: 'ui', label: 'UI' },
+  { value: 'data', label: 'Data' },
+  { value: 'workflow', label: 'Workflow' },
+  { value: 'mcp_server', label: 'MCP' },
+  { value: 'gateway', label: 'Gateway' },
+  { value: 'agent', label: 'Agent' },
+]
+
 export function SearchBar() {
   const searchQuery = useControlStore((s) => s.searchQuery)
   const setSearchQuery = useControlStore((s) => s.setSearchQuery)
@@ -18,22 +29,25 @@ export function SearchBar() {
 
   const [isFocused, setIsFocused] = useState(false)
   const [highlightIdx, setHighlightIdx] = useState(-1)
+  const [typeFilter, setTypeFilter] = useState<string>('all')
   const inputRef = useRef<HTMLInputElement>(null)
 
   const suggestions = useMemo(() => {
     if (!config || !searchQuery || searchQuery.length < 1) return []
     const q = searchQuery.toLowerCase()
-    return config.nodes
-      .filter(
+    let list = config.nodes.filter(
         (n) =>
           n.name.toLowerCase().includes(q) ||
           n.node_id.toLowerCase().includes(q) ||
           n.node_type.toLowerCase().includes(q) ||
           (n.description?.toLowerCase().includes(q) ?? false) ||
           (n.tech_stack?.some((t) => t.toLowerCase().includes(q)) ?? false)
-      )
-      .slice(0, 8)
-  }, [config, searchQuery])
+    )
+    if (typeFilter !== 'all') {
+      list = list.filter((n) => n.node_type === typeFilter)
+    }
+    return list.slice(0, 8)
+  }, [config, searchQuery, typeFilter])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -60,7 +74,17 @@ export function SearchBar() {
   )
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-2">
+      <select
+        value={typeFilter}
+        onChange={(e) => setTypeFilter(e.target.value)}
+        className="px-2 py-1 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-[9px] text-[var(--color-text-secondary)]"
+        title="Filter by type"
+      >
+        {TYPE_FILTER_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
       <div className="flex items-center gap-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-3 py-1.5">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
           <circle cx="11" cy="11" r="8" />
