@@ -8,6 +8,7 @@ A 3D/2D architecture visualization dashboard powered by XMAP v7, Guardian govern
 
 - **2D Graph View** -- Force-directed SVG graph with search, filter, node/edge detail panels
 - **3D Immersive View** -- React Three Fiber scene with bloom, Data-as-Light particles, orbit controls
+- **Light/Dark/System Theme** -- Theme toggle in header cycles Light, Dark, System (follows OS). Light mode for sunlight readability. 3D scene background, fog, and lighting follow theme.
 - **Guardian Dashboard** -- 19 deployment gates with phase grouping, evidence slots, compliance scoring
 - **Workflow Expander** -- Drill into workflow steps with retry policy visualization, breadcrumb navigation
 - **X-System Telemetry** -- Real-time event stream with severity filtering, rate visualization
