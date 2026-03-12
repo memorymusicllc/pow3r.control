@@ -78,7 +78,22 @@ export interface XmapManifest {
   required_gates?: string[]
 }
 
-export interface XmapNode {
+/** Extended fields for XMAP v7 "everything-you-need-to-know" detail panel (pHAi-style) */
+export interface XmapNodeExtended {
+  function?: string
+  process_details?: string
+  features?: string[]
+  integration?: string
+  best_practices?: string[]
+  memory_pattern?: string
+  infrastructure?: string
+  latency_target?: string
+  scaling?: string
+  key_data_types?: string[]
+  line_types?: string[]
+}
+
+export interface XmapNode extends XmapNodeExtended {
   node_id: string
   node_type: NodeType
   name: string
@@ -306,4 +321,53 @@ export const EDGE_TYPE_STYLES: Record<EdgeType, { color: string; dashArray: stri
   control: { color: DEFAULT_COLORS.magenta, dashArray: '', label: 'Control' },
   event: { color: DEFAULT_COLORS.gold, dashArray: '2 6', label: 'Event' },
   api: { color: DEFAULT_COLORS.purple, dashArray: '8 4', label: 'API' },
+}
+
+/** Light-theme variants: high-contrast colors for visibility on white/light backgrounds (3D scene) */
+export const NODE_TYPE_COLORS_LIGHT: Record<NodeType, string> = {
+  service: '#0E7490',
+  ui: '#0369A1',
+  data: '#9A3412',
+  workflow: '#166534',
+  observer: '#5B21B6',
+  component_factory: '#9D174D',
+  mcp_server: '#6D28D9',
+  gateway: '#0F766E',
+  agent: '#86198F',
+}
+
+export const STATUS_COLORS_LIGHT: Record<NodeStatus, string> = {
+  unknown: '#334155',
+  healthy: '#0E7490',
+  degraded: '#B45309',
+  failed: '#B91C1C',
+  deploying: '#1D4ED8',
+  validating: '#0369A1',
+  validated: '#047857',
+  deployed: '#047857',
+}
+
+export const EDGE_TYPE_STYLES_LIGHT: Record<EdgeType, { color: string; dashArray: string; label: string }> = {
+  data: { color: '#0E7490', dashArray: '4 4', label: 'Data Flow' },
+  control: { color: '#86198F', dashArray: '', label: 'Control' },
+  event: { color: '#92400E', dashArray: '2 6', label: 'Event' },
+  api: { color: '#6D28D9', dashArray: '8 4', label: 'API' },
+}
+
+export type ResolvedTheme = 'light' | 'dark'
+
+/** Theme-aware node type color for 3D graph (light mode uses darker colors for visibility) */
+export function getNodeTypeColor(type: NodeType, resolved: ResolvedTheme): string {
+  return resolved === 'light' ? NODE_TYPE_COLORS_LIGHT[type] ?? '#475569' : NODE_TYPE_COLORS[type] ?? '#888888'
+}
+
+/** Theme-aware status color for 3D graph */
+export function getStatusColor(status: NodeStatus, resolved: ResolvedTheme): string {
+  return resolved === 'light' ? STATUS_COLORS_LIGHT[status] ?? '#475569' : STATUS_COLORS[status] ?? '#555566'
+}
+
+/** Theme-aware edge style for 3D graph */
+export function getEdgeStyle(edgeType: EdgeType, resolved: ResolvedTheme): { color: string; dashArray: string; label: string } {
+  const styles = resolved === 'light' ? EDGE_TYPE_STYLES_LIGHT : EDGE_TYPE_STYLES
+  return styles[edgeType] ?? styles.data
 }

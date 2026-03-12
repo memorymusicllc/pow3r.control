@@ -13,7 +13,13 @@ import type { NodeStatus } from '../../lib/types'
 
 export function HealthWidget() {
   const config = useControlStore((s) => s.config)
+  const configLoadedAt = useControlStore((s) => s.configLoadedAt)
+  const setViewMode = useControlStore((s) => s.setViewMode)
   if (!config) return null
+
+  const staleMinutes = configLoadedAt
+    ? Math.floor((Date.now() - new Date(configLoadedAt).getTime()) / 60000)
+    : null
 
   const score = config.compliance.compliance_score ?? 0
   const pct = Math.round(score * 100)
@@ -39,9 +45,18 @@ export function HealthWidget() {
 
   return (
     <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4 w-full max-w-[520px]">
-      <h3 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">
-        System Health
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+          System Health
+        </h3>
+        <button
+          onClick={() => setViewMode('dashboard')}
+          className="font-mono text-[9px] text-[var(--color-cyan)] hover:underline min-h-[44px] min-w-[44px]"
+          title="View dashboard"
+        >
+          View details
+        </button>
+      </div>
 
       <div className="flex items-center gap-6">
         {/* Radial gauge */}
@@ -85,6 +100,16 @@ export function HealthWidget() {
           ))}
         </div>
       </div>
+
+      {/* Data freshness */}
+      {configLoadedAt && (
+        <div className="flex items-center justify-between mt-2 font-mono text-[9px] text-[var(--color-text-muted)]">
+          <span>Last updated: {new Date(configLoadedAt).toLocaleTimeString()}</span>
+          {staleMinutes != null && staleMinutes >= 5 && (
+            <span className="text-[var(--color-amber)]">Data may be stale ({staleMinutes} min ago)</span>
+          )}
+        </div>
+      )}
 
       {/* Manifest */}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--color-border)]">

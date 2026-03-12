@@ -39,6 +39,8 @@ interface SimLink extends SimulationLinkDatum<SimNode> {
   edge: CompoundEdge
 }
 
+import { getNodeLayerOpacity } from '../../lib/graph-layers'
+
 function useFilteredGraph() {
   const config = useControlStore((s) => s.config)
   const searchQuery = useControlStore((s) => s.searchQuery)
@@ -98,6 +100,9 @@ export function Graph2D() {
   const toggleInlineExpansion = useControlStore((s) => s.toggleInlineExpansion)
   const collapseInlineNode = useControlStore((s) => s.collapseInlineNode)
   const setExpansionCache = useControlStore((s) => s.setExpansionCache)
+  const layerVisibility = useControlStore((s) => s.layerVisibility)
+  const isReviewMode = useControlStore((s) => s.isReviewMode)
+  const showCanvasInstructions = useControlStore((s) => s.showCanvasInstructions)
 
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
@@ -105,6 +110,10 @@ export function Graph2D() {
   const isDragging = useRef(false)
   const lastMouse = useRef({ x: 0, y: 0 })
   const [expandingNodeId, setExpandingNodeId] = useState<string | null>(null)
+
+  const lastTouchDistance = useRef<number | null>(null)
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null)
+  const lastTapTime = useRef(0)
 
   // Compute the compound graph from base data + expansion state
   const compound = useMemo(() =>
@@ -299,6 +308,66 @@ export function Graph2D() {
     selectEdge(null)
   }, [selectNode, selectEdge])
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const now = Date.now()
+      if (now - lastTapTime.current < 300) {
+        setTransform({ x: 0, y: 0, scale: 1 })
+        lastTapTime.current = 0
+        return
+      }
+      lastTapTime.current = now
+      isDragging.current = true
+      lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      lastTouchDistance.current = null
+    } else if (e.touches.length === 2) {
+      isDragging.current = false
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy)
+      lastTouchCenter.current = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      }
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    if (e.touches.length === 1 && isDragging.current) {
+      const dx = e.touches[0].clientX - lastMouse.current.x
+      const dy = e.touches[0].clientY - lastMouse.current.y
+      lastMouse.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+      setTransform((t) => ({ ...t, x: t.x + dx, y: t.y + dy }))
+    } else if (e.touches.length === 2 && lastTouchDistance.current !== null) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX
+      const dy = e.touches[0].clientY - e.touches[1].clientY
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      const scaleFactor = dist / lastTouchDistance.current
+      lastTouchDistance.current = dist
+
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
+      const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
+
+      if (lastTouchCenter.current) {
+        const panDx = cx - lastTouchCenter.current.x
+        const panDy = cy - lastTouchCenter.current.y
+        setTransform((t) => ({
+          x: t.x + panDx,
+          y: t.y + panDy,
+          scale: Math.max(0.1, Math.min(5, t.scale * scaleFactor)),
+        }))
+      }
+      lastTouchCenter.current = { x: cx, y: cy }
+    }
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false
+    lastTouchDistance.current = null
+    lastTouchCenter.current = null
+  }, [])
+
   /** Handle double-click: expand inline or collapse */
   const handleNodeDoubleClick = useCallback(async (nodeId: string) => {
     if (inlineExpandedNodeIds.has(nodeId)) {
@@ -340,13 +409,17 @@ export function Graph2D() {
         ref={svgRef}
         width={containerSize.width}
         height={containerSize.height}
-        className="absolute inset-0"
+        className="absolute inset-0 touch-none"
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onClick={handleBackgroundClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         style={{ cursor: isDragging.current ? 'grabbing' : 'grab' }}
       >
         <defs>
@@ -400,6 +473,12 @@ export function Graph2D() {
             const tgt = positions.get(edge.to_node)
             if (!src || !tgt) return null
 
+            const fromNode = compound.nodes.find((n) => n.node_id === edge.from_node)
+            const toNode = compound.nodes.find((n) => n.node_id === edge.to_node)
+            const edgeLayerOpacity = Math.min(
+              fromNode ? getNodeLayerOpacity(fromNode, layerVisibility) : 1,
+              toNode ? getNodeLayerOpacity(toNode, layerVisibility) : 1
+            )
             const style = EDGE_TYPE_STYLES[edge.edge_type] ?? EDGE_TYPE_STYLES.data
             const isSelected = edge.edge_id === selectedEdgeId
             const isConnected =
@@ -433,7 +512,7 @@ export function Graph2D() {
                   stroke={style.color}
                   strokeWidth={isSelected ? 3 : isConnected ? 2 : isInternal ? 0.8 : 1.2}
                   strokeDasharray={style.dashArray}
-                  strokeOpacity={isSelected ? 1 : isConnected ? 0.8 : isInternal ? 0.5 : 0.35}
+                  strokeOpacity={(isSelected ? 1 : isConnected ? 0.8 : isInternal ? 0.5 : 0.35) * edgeLayerOpacity}
                   fill="none"
                   markerEnd={`url(#arrow-${edge.edge_type})`}
                   filter={isSelected ? 'url(#glow)' : undefined}
@@ -443,15 +522,15 @@ export function Graph2D() {
                     selectEdge(edge.edge_id)
                   }}
                 />
-                {isSelected && (
+                {(isSelected || isReviewMode) && (
                   <text
                     x={cx}
                     y={cy - 8}
                     textAnchor="middle"
                     fill={style.color}
-                    fontSize={10}
+                    fontSize={isSelected ? 10 : 8}
                     fontFamily="monospace"
-                    opacity={0.9}
+                    opacity={isSelected ? 0.9 : 0.5}
                   >
                     {style.label}
                   </text>
@@ -479,6 +558,7 @@ export function Graph2D() {
             const statusColor = STATUS_COLORS[node.status] ?? '#555'
 
             const dimmed = searchQuery && !isSearchMatch && !isSelected
+            const layerOpacity = getNodeLayerOpacity(node, layerVisibility)
 
             return (
               <g
@@ -502,7 +582,7 @@ export function Graph2D() {
                   fill="none"
                   stroke={statusColor}
                   strokeWidth={isSelected ? 3 : 1.5}
-                  opacity={dimmed ? 0.15 : isSelected ? 1 : 0.6}
+                  opacity={(dimmed ? 0.15 : isSelected ? 1 : 0.6) * layerOpacity}
                   filter={isSelected || isHovered ? 'url(#glow-strong)' : 'url(#glow)'}
                 />
 
@@ -524,7 +604,7 @@ export function Graph2D() {
                   fill={dimmed ? '#1a1a24' : `${typeColor}18`}
                   stroke={typeColor}
                   strokeWidth={isSelected ? 2.5 : 1.5}
-                  opacity={dimmed ? 0.3 : 1}
+                  opacity={(dimmed ? 0.3 : 1) * layerOpacity}
                 />
 
                 {/* Loading spinner for expanding nodes */}
@@ -586,10 +666,12 @@ export function Graph2D() {
         </g>
       </svg>
 
-      {/* Bottom-left info */}
-      <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
-        Drag: pan | Scroll: zoom | Click: select | Double-click: expand
-      </div>
+      {/* Bottom-left info - toggled via View Panel menu */}
+      {showCanvasInstructions && (
+        <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
+          Drag: pan | Scroll: zoom | Click: select | Double-click: expand
+        </div>
+      )}
     </div>
   )
 }

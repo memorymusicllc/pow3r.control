@@ -33,7 +33,8 @@ export function TelemetryWidget() {
         </div>
         <button
           onClick={toggleTelemetryPanel}
-          className="font-mono text-[9px] text-[var(--color-cyan)] hover:underline"
+          className="font-mono text-[9px] text-[var(--color-cyan)] hover:underline min-h-[44px] min-w-[44px]"
+          title="Open telemetry stream"
         >
           Open stream
         </button>
@@ -69,6 +70,11 @@ export function TelemetryWidget() {
         <span>Last {recent.length} events</span>
         <span>{isConnected ? 'streaming' : 'disconnected'}</span>
       </div>
+      {!isConnected && (
+        <p className="mt-2 font-mono text-[9px] text-[var(--color-amber)]">
+          Live data unavailable. Connect to X-Stream for real-time events.
+        </p>
+      )}
 
       {/* Mini rate chart */}
       <div className="flex gap-px mt-2 h-3">

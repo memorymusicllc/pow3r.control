@@ -11,7 +11,7 @@
  * - Styled with pow3r.control CSS vars
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   fetchMCPTopology,
   callMCPTool,
@@ -59,13 +59,16 @@ export function MCPPlayground() {
   const [pkgExpanded, setPkgExpanded] = useState<Set<number>>(new Set())
   const [pkgLimit, setPkgLimit] = useState(10)
 
+  const selectedServerRef = useRef(selectedServer)
+  selectedServerRef.current = selectedServer
+
   const loadTopology = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const t = await fetchMCPTopology()
       setTopology(t)
-      if (t.servers.length && !selectedServer) {
+      if (t.servers.length && !selectedServerRef.current) {
         setSelectedServer(t.servers[0].name)
       }
     } catch (e) {
@@ -73,7 +76,7 @@ export function MCPPlayground() {
     } finally {
       setLoading(false)
     }
-  }, [selectedServer])
+  }, [])
 
   useEffect(() => {
     loadTopology()

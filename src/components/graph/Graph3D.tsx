@@ -30,6 +30,7 @@ import { TelemetryParticles } from './TelemetryParticles'
 import { CameraController } from './CameraController'
 import { useForceLayout3D } from './use-force-layout-3d'
 import { computeCompoundGraph } from '../../lib/compound-graph'
+import { getNodeLayerOpacity } from '../../lib/graph-layers'
 import { resolveChildrenForNode, isNodeExpandable } from '../../lib/expansion-api'
 import type { XmapNode, XmapEdge } from '../../lib/types'
 
@@ -108,6 +109,7 @@ function SceneContent() {
   const selectNode = useControlStore((s) => s.selectNode)
   const selectEdge = useControlStore((s) => s.selectEdge)
   const setHoveredNode = useControlStore((s) => s.setHoveredNode)
+  const layerVisibility = useControlStore((s) => s.layerVisibility)
 
   const expandableNodeIds = useMemo(() => {
     const ids = new Set(compound.expandableNodeIds)
@@ -188,6 +190,7 @@ function SceneContent() {
         const isDimmed = searchQuery
           ? !matchedNodeIds.has(node.node_id) && !isSelected
           : !isVisible && !node.parentGroupId
+        const layerOpacity = getNodeLayerOpacity(node, layerVisibility)
 
         return (
           <NodeMesh
@@ -196,7 +199,8 @@ function SceneContent() {
             position={pos}
             isSelected={isSelected}
             isHovered={isHovered}
-            isDimmed={isDimmed}
+            isDimmed={isDimmed || layerOpacity < 0.01}
+            layerOpacity={layerOpacity}
             isExpandable={expandableNodeIds.has(node.node_id)}
             isChild={!!node.parentGroupId}
             onClick={() => selectNode(node.node_id)}
@@ -222,6 +226,13 @@ function SceneContent() {
         const tgtPos = positions.get(edge.to_node)
         if (!srcPos || !tgtPos) return null
 
+        const fromNode = compound.nodes.find((n) => n.node_id === edge.from_node)
+        const toNode = compound.nodes.find((n) => n.node_id === edge.to_node)
+        const edgeLayerOpacity = Math.min(
+          fromNode ? getNodeLayerOpacity(fromNode, layerVisibility) : 1,
+          toNode ? getNodeLayerOpacity(toNode, layerVisibility) : 1
+        )
+
         const isVisible =
           visibleNodeIds.has(edge.from_node) && visibleNodeIds.has(edge.to_node)
         const isSelected = edge.edge_id === selectedEdgeId
@@ -240,6 +251,7 @@ function SceneContent() {
             isSelected={isSelected}
             isConnectedToSelected={isConnectedToSelected}
             isDimmed={!isVisible && !isConnectedToSelected}
+            layerOpacity={edgeLayerOpacity}
             onClick={() => selectEdge(edge.edge_id)}
           />
         )
@@ -256,6 +268,7 @@ function SceneContent() {
 
 function AmbientParticles() {
   const ref = useRef<THREE.Points>(null)
+  const resolved = useThemeStore((s) => s.resolved)
   const count = 500
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3)
@@ -273,19 +286,22 @@ function AmbientParticles() {
     ref.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.005) * 0.05
   })
 
+  const particleColor = resolved === 'light' ? '#64748B' : '#00E5FF'
+  const particleOpacity = resolved === 'light' ? 0.25 : 0.15
+
   return (
     <points ref={ref}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} />
       </bufferGeometry>
       <pointsMaterial
-        color="#00E5FF"
-        size={0.3}
+        color={particleColor}
+        size={resolved === 'light' ? 0.35 : 0.3}
         transparent
-        opacity={0.15}
+        opacity={particleOpacity}
         sizeAttenuation
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={resolved === 'light' ? THREE.NormalBlending : THREE.AdditiveBlending}
       />
     </points>
   )
@@ -295,15 +311,16 @@ export function Graph3D() {
   const selectNode = useControlStore((s) => s.selectNode)
   const selectEdge = useControlStore((s) => s.selectEdge)
   const resolved = useThemeStore((s) => s.resolved)
+  const showCanvasInstructions = useControlStore((s) => s.showCanvasInstructions)
 
   const sceneColors = resolved === 'light'
     ? {
-        bg: '#F8FAFC',
-        fog: '#E2E8F0',
-        fogNear: 80,
-        fogFar: 400,
-        hemisphereSky: '#94A3B8',
-        hemisphereGround: '#F1F5F9',
+        bg: '#F1F5F9',
+        fog: '#F1F5F9',
+        fogNear: 200,
+        fogFar: 800,
+        hemisphereSky: '#CBD5E1',
+        hemisphereGround: '#F8FAFC',
       }
     : {
         bg: '#000003',
@@ -328,13 +345,25 @@ export function Graph3D() {
         <color attach="background" args={[sceneColors.bg]} />
         <fog attach="fog" args={[sceneColors.fog, sceneColors.fogNear, sceneColors.fogFar]} />
 
-        {/* Enhanced multi-point lighting for depth */}
-        <ambientLight intensity={resolved === 'light' ? 0.4 : 0.08} />
-        <pointLight position={[60, 90, 60]} intensity={0.8} color="#00E5FF" distance={250} decay={2} />
-        <pointLight position={[-60, -50, -60]} intensity={0.4} color="#FF00FF" distance={200} decay={2} />
-        <pointLight position={[0, 120, 0]} intensity={0.15} color="#ffffff" distance={300} />
-        <pointLight position={[-80, 30, 80]} intensity={0.2} color="#A855F7" distance={180} decay={2} />
-        <hemisphereLight args={[sceneColors.hemisphereSky, sceneColors.hemisphereGround, resolved === 'light' ? 0.5 : 0.1]} />
+        {resolved === 'light' ? (
+          <>
+            {/* Light mode: strong directional lighting for solid material visibility */}
+            <ambientLight intensity={0.6} />
+            <directionalLight position={[50, 80, 50]} intensity={0.8} color="#FFFFFF" />
+            <directionalLight position={[-30, 40, -20]} intensity={0.3} color="#E2E8F0" />
+            <hemisphereLight args={[sceneColors.hemisphereSky, sceneColors.hemisphereGround, 0.5]} />
+          </>
+        ) : (
+          <>
+            {/* Dark mode: atmospheric colored point lights for glow effect */}
+            <ambientLight intensity={0.08} />
+            <pointLight position={[60, 90, 60]} intensity={0.8} color="#00E5FF" distance={250} decay={2} />
+            <pointLight position={[-60, -50, -60]} intensity={0.4} color="#FF00FF" distance={200} decay={2} />
+            <pointLight position={[0, 120, 0]} intensity={0.15} color="#ffffff" distance={300} />
+            <pointLight position={[-80, 30, 80]} intensity={0.2} color="#A855F7" distance={180} decay={2} />
+            <hemisphereLight args={[sceneColors.hemisphereSky, sceneColors.hemisphereGround, 0.1]} />
+          </>
+        )}
 
         {/* Star field (PKG knowledge constellation) - hidden in light mode */}
         {resolved === 'dark' && (
@@ -348,23 +377,25 @@ export function Graph3D() {
           <SceneContent />
         </Suspense>
 
-        {/* Enhanced post-processing */}
+        {/* Post-processing: near-zero bloom in light mode, full bloom in dark mode */}
         <EffectComposer multisampling={0}>
           <Bloom
-            intensity={1.2}
-            luminanceThreshold={0.15}
+            intensity={resolved === 'light' ? 0.0 : 1.2}
+            luminanceThreshold={resolved === 'light' ? 1.0 : 0.15}
             luminanceSmoothing={0.95}
             mipmapBlur
-            radius={0.85}
+            radius={resolved === 'light' ? 0.0 : 0.85}
           />
-          <Vignette eskil={false} offset={0.15} darkness={resolved === 'light' ? 0.3 : 0.9} />
+          <Vignette eskil={false} offset={0.15} darkness={resolved === 'light' ? 0.15 : 0.9} />
         </EffectComposer>
       </Canvas>
 
-      {/* 3D control hints */}
-      <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
-        Drag: rotate | Right-drag: pan | Scroll: zoom | Click: select | Idle: auto-rotate
-      </div>
+      {/* 3D control hints - toggled via View Panel menu */}
+      {showCanvasInstructions && (
+        <div className="absolute bottom-4 left-4 text-[10px] font-mono text-[var(--color-text-muted)] select-none pointer-events-none">
+          Drag: rotate | Right-drag: pan | Scroll: zoom | Click: select | Idle: auto-rotate
+        </div>
+      )}
     </div>
   )
 }

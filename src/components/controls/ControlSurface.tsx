@@ -63,7 +63,7 @@ export function ControlSurface() {
 
       <div className="flex-1 overflow-y-auto p-3 space-y-5">
         {/* Layer Faders */}
-        <div>
+        <div title="Adjusts visibility of layers in the graph (2D/3D views)">
           <span className="font-mono text-[8px] text-[var(--color-text-muted)] uppercase tracking-widest">
             Layer Mix
           </span>

@@ -71,3 +71,32 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+/* Review mode: visible structure, contrast-safe outlines */
+[data-review="true"] [class*="bg-[var(--color-bg-card)]"],
+[data-review="true"] [class*="bg-[var(--color-bg-panel)]"] {
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
+}
+[data-review="true"] header {
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+/* Aspect-ratio responsive nav: portrait = bottom bar, landscape = left sidebar */
+@media (orientation: portrait) {
+  .nav-sidebar {
+    display: none !important;
+  }
+  .nav-footer {
+    display: flex !important;
+  }
+}
+
+@media (orientation: landscape) {
+  .nav-sidebar {
+    display: flex !important;
+  }
+  .nav-footer {
+    display: none !important;
+  }
+}

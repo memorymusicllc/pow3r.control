@@ -14,7 +14,7 @@
 import type { XmapV7Config, XmapNode, XmapEdge } from './types'
 
 export function isXmapV7(data: Record<string, unknown>): boolean {
-  return 'manifest' in data && 'guardian' in data
+  return ('manifest' in data || ('metadata' in data && 'nodes' in data)) && Array.isArray(data.nodes)
 }
 
 export function isXmapV5(data: Record<string, unknown>): boolean {
@@ -127,7 +127,16 @@ export async function loadXmapConfig(source: string | Record<string, unknown>): 
   }
 
   if (isXmapV7(data)) {
-    return data as unknown as XmapV7Config
+    const d = data as Record<string, unknown>
+    if (!d.manifest) {
+      d.manifest = {
+        manifest_id: `${(d.metadata as Record<string, unknown>)?.id ?? 'unknown'}-manifest`,
+        manifest_version: '1.0.0',
+        manifest_status: 'validated',
+      }
+    }
+    if (!d.guardian) d.guardian = []
+    return d as unknown as XmapV7Config
   }
 
   if (isXmapV5(data)) {

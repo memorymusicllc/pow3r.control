@@ -15,7 +15,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useControlStore, selectSelectedNode } from '../../store/control-store'
 
-const PKG_API = 'https://config.superbots.link/api/pkg'
+const API_BASE = 'https://config.superbots.link'
 
 interface PKGDocument {
   id: string
@@ -39,6 +39,7 @@ export function PKGOverlay() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isExpanded, setIsExpanded] = useState(true)
+  const [isHidden, setIsHidden] = useState(false)
   const cache = useRef<Map<string, PKGResult>>(new Map())
 
   useEffect(() => {
@@ -69,23 +70,31 @@ export function PKGOverlay() {
       .finally(() => setIsLoading(false))
   }, [node?.node_id, showGovernanceOverlay])
 
-  if (!node || !showGovernanceOverlay) return null
+  if (!node || !showGovernanceOverlay || isHidden) return null
 
   return (
     <div className="absolute top-14 left-2 w-72 max-h-[60vh] bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg overflow-hidden z-15 flex flex-col">
-      {/* Header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)] shrink-0 hover:bg-[var(--color-bg-card)] transition-colors"
-      >
-        <div className="flex items-center gap-2">
+      {/* Header: [-] collapse, [x] hide */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--color-border)] shrink-0">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2 hover:bg-[var(--color-bg-card)] rounded px-1 py-0.5 transition-colors min-w-[32px] min-h-[32px] items-center justify-center"
+          title={isExpanded ? 'Collapse' : 'Expand'}
+        >
           <div className="w-2 h-2 rounded-full bg-[var(--color-purple)]" />
           <span className="font-mono text-[10px] font-semibold text-[var(--color-text-primary)]">
             PKG Intelligence
           </span>
-        </div>
-        <span className="text-[var(--color-text-muted)] text-xs">{isExpanded ? '-' : '+'}</span>
-      </button>
+          <span className="text-[var(--color-text-muted)] text-xs ml-1">{isExpanded ? '-' : '+'}</span>
+        </button>
+        <button
+          onClick={() => setIsHidden(true)}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] font-mono text-sm min-w-[32px] min-h-[32px] flex items-center justify-center rounded hover:bg-[var(--color-bg-card)]"
+          title="Hide panel"
+        >
+          x
+        </button>
+      </div>
 
       {isExpanded && (
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -181,32 +190,34 @@ export function PKGOverlay() {
   )
 }
 
+/** Use GET /api/search?q=...&source=pkg_hybrid (config.superbots.link) - POST /api/pkg/search returns 404 */
 async function fetchPKG(query: string): Promise<PKGResult> {
   try {
-    const res = await fetch(`${PKG_API}/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, topK: 5 }),
-    })
+    const res = await fetch(
+      `${API_BASE}/api/search?q=${encodeURIComponent(query)}&source=pkg_hybrid&limit=5`
+    )
 
     if (!res.ok) throw new Error(`PKG API returned ${res.status}`)
 
-    const json = await res.json() as {
-      success?: boolean
-      results?: Array<{ id: string; title: string; content: string; score: number; metadata?: Record<string, unknown> }>
-      data?: { results?: Array<{ id: string; title: string; content: string; score: number; metadata?: Record<string, unknown> }> }
+    const json = (await res.json()) as {
+      results?: Array<{ id?: string; nodeId?: string; title?: string; content?: string; score?: number; metadata?: Record<string, unknown> }>
+      data?: { results?: unknown[] }
     }
 
-    const docs = json.data?.results ?? json.results ?? []
+    const raw = json.results ?? json.data?.results ?? []
+    const docs = Array.isArray(raw) ? raw : []
 
     return {
-      documents: docs.map((d) => ({
-        id: d.id ?? `pkg-${Math.random()}`,
-        title: d.title ?? 'Untitled',
-        content: d.content ?? '',
-        score: d.score ?? 0,
-        metadata: d.metadata,
-      })),
+      documents: docs.slice(0, 5).map((d) => {
+        const rec = d as Record<string, unknown>
+        return {
+          id: (rec.id ?? rec.nodeId ?? `pkg-${Math.random()}`) as string,
+          title: (rec.title ?? 'Untitled') as string,
+          content: (rec.content ?? rec.title ?? '') as string,
+          score: (rec.score ?? 0) as number,
+          metadata: rec.metadata as Record<string, unknown> | undefined,
+        }
+      }),
       query,
       timestamp: new Date().toISOString(),
     }

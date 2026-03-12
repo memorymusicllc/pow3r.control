@@ -4,8 +4,10 @@
  * Purpose:
  * - Deepest-level toggle/value inspection from Component Factory
  * - Config chain source tracing
+ * - Follows selected node: shows node-derived leaves when node selected
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import type { XmapV7Config } from '../../lib/types'
 
 export interface ConfigLeaf {
   path: string
@@ -17,6 +19,8 @@ export interface ConfigLeaf {
 
 interface ConfigLeafViewerProps {
   leaves?: ConfigLeaf[]
+  selectedNodeId?: string | null
+  config?: XmapV7Config | null
   onClose?: () => void
 }
 
@@ -31,7 +35,44 @@ const DEMO_LEAVES: ConfigLeaf[] = [
   { path: 'writer.model', key: 'timeout', value: 30000, type: 'number', source: 'configs/writer.pow3r.json' },
 ]
 
-export function ConfigLeafViewer({ leaves = DEMO_LEAVES, onClose }: ConfigLeafViewerProps) {
+function getLeavesForNode(nodeId: string, config: XmapV7Config | null): ConfigLeaf[] {
+  if (!config) return []
+  const node = config.nodes.find((n) => n.node_id === nodeId)
+  if (!node) return []
+
+  const leaves: ConfigLeaf[] = []
+  const nodePath = `nodes.${node.node_id}`
+
+  const add = (key: string, value: unknown, path = nodePath) => {
+    if (value === undefined) return
+    const type = typeof value === 'boolean' ? 'boolean' : typeof value === 'string' ? 'string' : typeof value === 'number' ? 'number' : Array.isArray(value) ? 'array' : typeof value === 'object' && value !== null ? 'object' : 'string'
+    leaves.push({ path, key, value, type, source: `config.nodes.${node.node_id}` })
+  }
+
+  add('node_id', node.node_id)
+  add('node_type', node.node_type)
+  add('name', node.name)
+  add('status', node.status)
+  if (node.description) add('description', node.description)
+  if (node.owner) add('owner', node.owner)
+  if (node.tech_stack?.length) add('tech_stack', node.tech_stack.join(', '))
+  if (node.deployment_targets?.length) add('deployment_targets', node.deployment_targets.join(', '))
+  if (node.required_tests?.length) add('required_tests', node.required_tests.join(', '))
+  if (node.telemetry_endpoints?.length) add('telemetry_endpoints', node.telemetry_endpoints.join(', '))
+  if (node.privileges && Object.keys(node.privileges).length) add('privileges', JSON.stringify(node.privileges))
+  if (node.immutable_flags?.length) add('immutable_flags', node.immutable_flags.join(', '))
+
+  return leaves
+}
+
+export function ConfigLeafViewer({ leaves: providedLeaves, selectedNodeId, config, onClose }: ConfigLeafViewerProps) {
+  const leaves = useMemo(() => {
+    if (selectedNodeId && config) {
+      const nodeLeaves = getLeavesForNode(selectedNodeId, config)
+      if (nodeLeaves.length > 0) return nodeLeaves
+    }
+    return providedLeaves ?? DEMO_LEAVES
+  }, [selectedNodeId, config, providedLeaves])
   const [filter, setFilter] = useState('')
 
   const filtered = filter
@@ -46,7 +87,7 @@ export function ConfigLeafViewer({ leaves = DEMO_LEAVES, onClose }: ConfigLeafVi
     <div className="absolute bottom-4 right-4 w-96 max-w-[90vw] max-h-80 bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-30">
       <div className="p-2 border-b border-[var(--color-border)] flex items-center justify-between">
         <h4 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">
-          Config Leaf Viewer
+          Config Leaf Viewer{selectedNodeId ? ` (${selectedNodeId})` : ''}
         </h4>
         {onClose && (
           <button onClick={onClose} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]">

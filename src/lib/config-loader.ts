@@ -2,18 +2,17 @@
  * pow3r.control - Live Config Loader
  *
  * Purpose:
- * - Loads XMAP configs from config.superbots.link or local files
- * - Supports loading multiple configs (PIMP v7, URVS v5, platform)
+ * - Loads XMAP configs from config.superbots.link API
+ * - Supports platform-expansion (primary), platform-v7, and other remote configs
  * - Adapts v5 configs to v7 via xmap-parser
  *
  * Agent Instructions:
- * - Use loadConfigFromUrl() for remote configs
- * - Use loadConfigByName() for known platform configs
- * - Falls back to sample data if API is unavailable
+ * - Use loadConfigByName() for known config IDs (platform-expansion, platform-v7, etc.)
+ * - Use loadConfigFromUrl() for arbitrary URLs
+ * - No sample data fallback; API failure surfaces error
  */
 import type { XmapV7Config } from './types'
 import { loadXmapConfig } from './xmap-parser'
-import { SAMPLE_CONFIG } from './sample-data'
 
 const API_BASE = 'https://config.superbots.link/api'
 
@@ -25,12 +24,20 @@ export interface ConfigOption {
   config?: XmapV7Config
 }
 
+export const DEFAULT_CONFIG_ID = 'platform-expansion'
+
 export const AVAILABLE_CONFIGS: ConfigOption[] = [
   {
-    id: 'pow3r-platform',
-    name: 'Pow3r Uber Master (default)',
-    source: 'local',
-    config: SAMPLE_CONFIG,
+    id: 'platform-expansion',
+    name: 'Platform Expansion',
+    source: 'remote',
+    url: `${API_BASE}/xmap/config/platform-expansion`,
+  },
+  {
+    id: 'platform-v7',
+    name: 'Platform v7',
+    source: 'remote',
+    url: `${API_BASE}/xmap/config/platform-v7`,
   },
   {
     id: 'pimp-v7',
@@ -51,6 +58,12 @@ export const AVAILABLE_CONFIGS: ConfigOption[] = [
     url: `${API_BASE}/xmap/config/urvs-v5`,
   },
   {
+    id: 'control-v7',
+    name: 'pow3r.control v7',
+    source: 'remote',
+    url: `${API_BASE}/xmap/config/control-v7`,
+  },
+  {
     id: 'control-v5',
     name: 'pow3r.control v5',
     source: 'remote',
@@ -63,13 +76,12 @@ export async function fetchAvailableConfigs(): Promise<ConfigOption[]> {
     const res = await fetch(`${API_BASE}/xmap/configs`)
     const json = await res.json() as { success: boolean; data?: { configs: Array<{ id: string; name: string; schema: string; description: string }> } }
     if (json.success && json.data?.configs) {
-      const remote: ConfigOption[] = json.data.configs.map((c) => ({
+      return json.data.configs.map((c) => ({
         id: c.id,
         name: `${c.name} (${c.schema})`,
         source: 'remote' as const,
         url: `${API_BASE}/xmap/config/${c.id}`,
       }))
-      return [AVAILABLE_CONFIGS[0], ...remote]
     }
   } catch {
     // Fall back to static list
@@ -78,33 +90,14 @@ export async function fetchAvailableConfigs(): Promise<ConfigOption[]> {
 }
 
 export async function loadConfigByName(id: string): Promise<XmapV7Config> {
-  const option = AVAILABLE_CONFIGS.find((c) => c.id === id)
-  if (!option) throw new Error(`Config not found: ${id}`)
-
-  if (option.source === 'local' && option.config) {
-    return option.config
-  }
-
-  if (option.url) {
-    try {
-      const res = await fetch(option.url)
-      const json = await res.json() as { success?: boolean; data?: Record<string, unknown> }
-      const data = json.success && json.data ? json.data : json
-      return await loadXmapConfig(data as Record<string, unknown>)
-    } catch (err) {
-      console.warn(`Failed to load remote config ${id}, falling back to sample:`, err)
-      return SAMPLE_CONFIG
-    }
-  }
-
-  return SAMPLE_CONFIG
+  const url = AVAILABLE_CONFIGS.find((c) => c.id === id)?.url ?? `${API_BASE}/xmap/config/${id}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Config ${id} failed: ${res.status} ${res.statusText}`)
+  const json = await res.json() as { success?: boolean; data?: Record<string, unknown> }
+  const data = json.success && json.data ? json.data : json
+  return await loadXmapConfig(data as Record<string, unknown>)
 }
 
 export async function loadConfigFromUrl(url: string): Promise<XmapV7Config> {
-  try {
-    return await loadXmapConfig(url)
-  } catch (err) {
-    console.warn('Failed to load config from URL, falling back to sample:', err)
-    return SAMPLE_CONFIG
-  }
+  return await loadXmapConfig(url)
 }

@@ -13,7 +13,8 @@ import { useFrame } from '@react-three/fiber'
 import { Billboard, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import type { XmapNode, NodeType } from '../../lib/types'
-import { NODE_TYPE_COLORS, STATUS_COLORS } from '../../lib/types'
+import { getNodeTypeColor, getStatusColor } from '../../lib/types'
+import { useThemeStore } from '../../store/theme-store'
 import type { Position3D } from './use-force-layout-3d'
 
 interface NodeMeshProps {
@@ -22,6 +23,7 @@ interface NodeMeshProps {
   isSelected: boolean
   isHovered: boolean
   isDimmed: boolean
+  layerOpacity?: number
   isExpandable?: boolean
   isChild?: boolean
   onClick: () => void
@@ -38,6 +40,7 @@ export function NodeMesh({
   isSelected,
   isHovered,
   isDimmed,
+  layerOpacity = 1,
   isExpandable,
   isChild,
   onClick,
@@ -49,13 +52,14 @@ export function NodeMesh({
   const glowRef = useRef<THREE.Mesh>(null)
   const [pulsePhase] = useState(() => Math.random() * Math.PI * 2)
   const lastClickTime = useRef(0)
+  const resolved = useThemeStore((s) => s.resolved)
 
-  const typeColor = new THREE.Color(NODE_TYPE_COLORS[node.node_type] ?? '#888888')
-  const statusColor = new THREE.Color(STATUS_COLORS[node.status] ?? '#555566')
+  const typeColor = new THREE.Color(getNodeTypeColor(node.node_type, resolved))
+  const statusColor = new THREE.Color(getStatusColor(node.status, resolved))
 
   const childScale = isChild ? 0.7 : 1.0
   const baseScale = (isSelected ? 1.4 : isHovered ? 1.2 : 1.0) * childScale
-  const opacity = isDimmed ? 0.15 : 1.0
+  const opacity = (isDimmed ? 0.15 : 1.0) * layerOpacity
 
   useFrame(({ clock }) => {
     if (!meshRef.current) return
@@ -75,29 +79,28 @@ export function NodeMesh({
     }
   })
 
+  const isLight = resolved === 'light'
+
   return (
     <group position={[position.x, position.y, position.z]}>
-      {/* Outer atmospheric glow (larger, softer) */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[1, 16, 16]} />
-        <meshBasicMaterial
-          color={statusColor}
-          transparent
-          opacity={isDimmed ? 0.01 : isSelected ? 0.25 : 0.1}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Inner core glow (tighter, brighter) */}
-      {!isDimmed && (
-        <mesh scale={[NODE_SCALE * 1.15, NODE_SCALE * 1.15, NODE_SCALE * 1.15]}>
-          <sphereGeometry args={[1, 12, 12]} />
+      {/* Outer atmospheric glow - dark mode only (bloom-dependent effect) */}
+      {!isLight && (
+        <mesh ref={glowRef}>
+          <sphereGeometry args={[1, 16, 16]} />
           <meshBasicMaterial
-            color={isSelected ? '#ffffff' : statusColor}
+            color={statusColor}
             transparent
-            opacity={isSelected ? 0.15 : 0.05}
+            opacity={isDimmed ? 0.01 : isSelected ? 0.25 : 0.1}
             depthWrite={false}
           />
+        </mesh>
+      )}
+
+      {/* Light mode: solid colored shadow sphere beneath node for depth */}
+      {isLight && !isDimmed && (
+        <mesh position={[0, -NODE_SCALE * 0.3, 0]} scale={[1.2, 0.15, 1.2]}>
+          <sphereGeometry args={[NODE_SCALE, 16, 16]} />
+          <meshBasicMaterial color="#334155" transparent opacity={0.15} depthWrite={false} />
         </mesh>
       )}
 
@@ -119,23 +122,51 @@ export function NodeMesh({
         onPointerLeave={onPointerLeave}
       >
         <NodeGeometry type={node.node_type} />
-        <meshStandardMaterial
-          color={typeColor}
-          emissive={statusColor}
-          emissiveIntensity={isDimmed ? 0.03 : isSelected ? 1.8 : 0.7}
-          metalness={0.4}
-          roughness={0.3}
-          transparent
-          opacity={opacity}
-          envMapIntensity={0.5}
-        />
+        {isLight ? (
+          <meshStandardMaterial
+            color={typeColor}
+            emissive={typeColor}
+            emissiveIntensity={isDimmed ? 0 : isSelected ? 0.3 : 0.15}
+            metalness={0.1}
+            roughness={0.4}
+            transparent={isDimmed}
+            opacity={isDimmed ? 0.15 : 1.0}
+          />
+        ) : (
+          <meshStandardMaterial
+            color={typeColor}
+            emissive={statusColor}
+            emissiveIntensity={isDimmed ? 0.03 : isSelected ? 1.8 : 0.7}
+            metalness={0.4}
+            roughness={0.3}
+            transparent
+            opacity={opacity}
+            envMapIntensity={0.5}
+          />
+        )}
       </mesh>
+
+      {/* Dark outline ring in light mode for strong contrast */}
+      {isLight && !isDimmed && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[NODE_SCALE * 1.1, 0.12, 8, 32]} />
+          <meshBasicMaterial color="#1e293b" transparent opacity={isSelected ? 1.0 : 0.7} />
+        </mesh>
+      )}
+
+      {/* Status indicator dot (light mode) */}
+      {isLight && !isDimmed && (
+        <mesh position={[NODE_SCALE * 0.9, NODE_SCALE * 0.9, 0]}>
+          <sphereGeometry args={[0.4, 8, 8]} />
+          <meshBasicMaterial color={statusColor} />
+        </mesh>
+      )}
 
       {/* Selection ring */}
       {isSelected && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[NODE_SCALE * 1.8, 0.15, 8, 32]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+          <torusGeometry args={[NODE_SCALE * 1.8, isLight ? 0.2 : 0.15, 8, 32]} />
+          <meshBasicMaterial color={isLight ? '#0f172a' : '#ffffff'} transparent opacity={isLight ? 1.0 : 0.6} />
         </mesh>
       )}
 
@@ -144,7 +175,7 @@ export function NodeMesh({
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[NODE_SCALE * 2.2, 0.08, 8, 24]} />
           <meshBasicMaterial
-            color={typeColor}
+            color={isLight ? '#334155' : typeColor}
             transparent
             opacity={isDimmed ? 0.05 : isHovered ? 0.5 : 0.2}
           />
@@ -155,11 +186,13 @@ export function NodeMesh({
       <Billboard position={[0, -NODE_SCALE * 2.2, 0]}>
         <Text
           fontSize={1.8}
-          color={isDimmed ? '#333344' : '#ccccdd'}
+          color={isDimmed ? (isLight ? '#94A3B8' : '#333344') : (isLight ? '#0F172A' : '#ccccdd')}
           anchorX="center"
           anchorY="top"
           font={undefined}
           maxWidth={30}
+          outlineWidth={isLight && !isDimmed ? 0.08 : 0}
+          outlineColor={isLight ? '#F8FAFC' : '#000000'}
         >
           {node.name}
         </Text>
@@ -169,11 +202,13 @@ export function NodeMesh({
       <Billboard>
         <Text
           fontSize={1.4}
-          color={isDimmed ? '#222233' : typeColor.getStyle()}
+          color={isDimmed ? (isLight ? '#94A3B8' : '#222233') : (isLight ? '#FFFFFF' : typeColor.getStyle())}
           anchorX="center"
           anchorY="middle"
           fontWeight={700}
           font={undefined}
+          outlineWidth={isLight && !isDimmed ? 0.06 : 0}
+          outlineColor={isLight ? typeColor.getStyle() : '#000000'}
         >
           {nodeTypeAbbrev(node.node_type)}
         </Text>

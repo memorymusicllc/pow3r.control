@@ -23,19 +23,31 @@ const VIEW_MODES: Array<{ mode: ViewMode; label: string; icon: string }> = [
   { mode: 'data', label: 'Data', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4' },
 ]
 
-export function ViewSwitcher() {
+interface ViewSwitcherProps {
+  /** 'horizontal' = bottom bar (portrait), 'vertical' = left sidebar (landscape) */
+  orientation?: 'horizontal' | 'vertical'
+}
+
+export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) {
   const viewMode = useControlStore((s) => s.viewMode)
   const setViewMode = useControlStore((s) => s.setViewMode)
+  const isVertical = orientation === 'vertical'
 
   return (
-    <nav className="flex items-center gap-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-1 overflow-x-auto max-w-full">
+    <nav
+      className={`flex bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-1 overflow-x-auto max-w-full ${
+        isVertical ? 'flex-col gap-2 w-full' : 'flex-row items-center gap-2'
+      }`}
+    >
       {VIEW_MODES.map(({ mode, label, icon }) => {
         const isActive = viewMode === mode
         return (
           <button
             key={mode}
             onClick={() => setViewMode(mode)}
-            className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-md transition-colors ${
+            className={`flex items-center gap-0.5 rounded-md transition-colors min-w-[32px] min-h-[32px] ${
+              isVertical ? 'flex-col justify-center px-2 py-1.5' : 'flex-row px-3 py-1.5'
+            } ${
               isActive
                 ? 'bg-[var(--color-bg-panel)] text-[var(--color-cyan)]'
                 : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'

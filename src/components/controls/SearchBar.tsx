@@ -21,7 +21,7 @@ const TYPE_FILTER_OPTIONS = [
   { value: 'agent', label: 'Agent' },
 ]
 
-export function SearchBar() {
+export function SearchBar({ compact = false }: { compact?: boolean }) {
   const searchQuery = useControlStore((s) => s.searchQuery)
   const setSearchQuery = useControlStore((s) => s.setSearchQuery)
   const selectNode = useControlStore((s) => s.selectNode)
@@ -75,18 +75,20 @@ export function SearchBar() {
 
   return (
     <div className="relative flex items-center gap-2">
-      <select
-        value={typeFilter}
-        onChange={(e) => setTypeFilter(e.target.value)}
-        className="px-2 py-1 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-[9px] text-[var(--color-text-secondary)]"
-        title="Filter by type"
-      >
-        {TYPE_FILTER_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
-      <div className="flex items-center gap-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-3 py-1.5">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
+      {!compact && (
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="px-2 py-1.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-[9px] text-[var(--color-text-secondary)] min-h-[32px]"
+          title="Filter by type"
+        >
+          {TYPE_FILTER_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      )}
+      <div className="flex items-center gap-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 min-h-[32px]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" className="shrink-0">
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
@@ -101,8 +103,8 @@ export function SearchBar() {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setTimeout(() => setIsFocused(false), 200)}
           onKeyDown={handleKeyDown}
-          placeholder="Search nodes..."
-          className="bg-transparent text-xs font-mono text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] w-40"
+          placeholder={compact ? 'Search...' : 'Search nodes...'}
+          className={`bg-transparent text-xs font-mono text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] ${compact ? 'w-24' : 'w-40'}`}
         />
         {searchQuery && (
           <button
@@ -110,7 +112,7 @@ export function SearchBar() {
               setSearchQuery('')
               selectNode(null)
             }}
-            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs"
+            className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] text-xs min-w-[24px] min-h-[24px] flex items-center justify-center"
           >
             x
           </button>

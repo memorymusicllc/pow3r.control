@@ -78,7 +78,7 @@ export const useWorkflowExecutionStore = create<WorkflowExecutionState>((set) =>
         set((s) => {
           const steps = [...(s.executions[workflowId] ?? [])]
           const idx = steps.findIndex((x) => x.stepId === stepId)
-          const fail = Math.random() < 0.12 && i > 0
+          const fail = Math.random() < 0.03 && i > 0
           if (idx >= 0) {
             steps[idx] = {
               ...steps[idx],

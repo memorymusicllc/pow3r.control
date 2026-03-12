@@ -32,6 +32,7 @@ export interface ExpansionCacheEntry {
 
 interface ControlState {
   config: XmapV7Config | null
+  configLoadedAt: string | null
   isLoading: boolean
   error: string | null
 
@@ -71,6 +72,12 @@ interface ControlState {
   workflowBreadcrumb: string[]
   showGovernanceOverlay: boolean
 
+  /** Review mode: visible grid/bounds, contrast-safe outlines, debug labels */
+  isReviewMode: boolean
+
+  /** Canvas interaction hints (Drag, scroll, click...) */
+  showCanvasInstructions: boolean
+
   // Actions
   loadConfig: (config: XmapV7Config) => void
   setViewMode: (mode: ViewMode) => void
@@ -92,6 +99,8 @@ interface ControlState {
   expandWorkflow: (workflowId: string | null) => void
   popWorkflowBreadcrumb: () => void
   toggleGovernanceOverlay: () => void
+  toggleReviewMode: () => void
+  toggleCanvasInstructions: () => void
 
   /** Toggle a node's in-graph expansion (expand if collapsed, collapse if expanded) */
   toggleInlineExpansion: (nodeId: string) => void
@@ -173,6 +182,7 @@ export const selectAllTechTags = (state: ControlState): string[] => {
 
 export const useControlStore = create<ControlState>((set) => ({
   config: null,
+  configLoadedAt: null,
   isLoading: false,
   error: null,
 
@@ -209,9 +219,18 @@ export const useControlStore = create<ControlState>((set) => ({
   expandedWorkflowId: null,
   workflowBreadcrumb: [],
   showGovernanceOverlay: true,
+  isReviewMode: (() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return localStorage.getItem('pow3r-control-review-mode') === 'true'
+    } catch {
+      return false
+    }
+  })(),
+  showCanvasInstructions: true,
 
   loadConfig: (config) =>
-    set({ config, isLoading: false, error: null }),
+    set({ config, configLoadedAt: new Date().toISOString(), isLoading: false, error: null }),
 
   setViewMode: (viewMode) => set({ viewMode }),
   setLayoutMode: (layoutMode) => set({ layoutMode }),
@@ -296,6 +315,18 @@ export const useControlStore = create<ControlState>((set) => ({
   toggleGovernanceOverlay: () =>
     set((state) => ({ showGovernanceOverlay: !state.showGovernanceOverlay })),
 
+  toggleCanvasInstructions: () =>
+    set((state) => ({ showCanvasInstructions: !state.showCanvasInstructions })),
+
+  toggleReviewMode: () =>
+    set((state) => {
+      const next = !state.isReviewMode
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('pow3r-control-review-mode', String(next))
+      }
+      return { isReviewMode: next }
+    }),
+
   toggleInlineExpansion: (nodeId) =>
     set((state) => {
       const next = new Set(state.inlineExpandedNodeIds)
@@ -313,7 +344,15 @@ export const useControlStore = create<ControlState>((set) => ({
       next.delete(nodeId)
       const cache = new Map(state.expansionCache)
       cache.delete(nodeId)
-      return { inlineExpandedNodeIds: next, expansionCache: cache }
+      // Clear selection if selected node was a child of the collapsed group
+      const cached = state.expansionCache.get(nodeId)
+      const childIds = cached ? new Set(cached.nodes.map((n) => n.node_id)) : new Set<string>()
+      childIds.add(`__centroid__${nodeId}`)
+      const clearSelection =
+        state.selectedNodeId && childIds.has(state.selectedNodeId)
+          ? { selectedNodeId: null as string | null }
+          : {}
+      return { inlineExpandedNodeIds: next, expansionCache: cache, ...clearSelection }
     }),
 
   collapseAllInline: () =>

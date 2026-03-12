@@ -3,12 +3,14 @@
  *
  * Purpose:
  * - 38-tool registry grid, conversation browser, KG viewer, media gallery, job monitor
+ * - Card per tool with description, category, and action
  */
 import { useState } from 'react'
+import { useControlStore } from '../../store/control-store'
 
-const TOOL_REGISTRY: Array<{ name: string; category: string }> = [
-  { name: 'abacus_image_generate', category: 'Media' },
-  { name: 'abacus_video_generate', category: 'Media' },
+const TOOL_REGISTRY: Array<{ name: string; category: string; description?: string }> = [
+  { name: 'abacus_image_generate', category: 'Media', description: 'Generate images from prompts' },
+  { name: 'abacus_video_generate', category: 'Media', description: 'Generate videos from prompts' },
   { name: 'abacus_chat_complete', category: 'AI/ML' },
   { name: 'abacus_graph_rag_query', category: 'Knowledge Graph' },
   { name: 'abacus_deep_research', category: 'AI/ML' },
@@ -47,6 +49,7 @@ const TOOL_REGISTRY: Array<{ name: string; category: string }> = [
 ]
 
 export function AbacusDashboard() {
+  const setViewMode = useControlStore((s) => s.setViewMode)
   const [activeTab, setActiveTab] = useState<'tools' | 'conversations' | 'kg' | 'media' | 'jobs'>('tools')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
 
@@ -94,10 +97,26 @@ export function AbacusDashboard() {
             {filteredTools.map((t) => (
               <div
                 key={t.name}
-                className="p-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] font-mono text-[10px]"
+                className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-cyan)] transition-colors"
               >
-                <span className="text-[var(--color-cyan)]">{t.name}</span>
-                <span className="ml-2 text-[var(--color-text-muted)]">({t.category})</span>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <code className="font-mono text-[11px] text-[var(--color-cyan)] truncate block">
+                      {t.name}
+                    </code>
+                    <span className="font-mono text-[9px] text-[var(--color-text-muted)] mt-0.5 block">
+                      {t.category}
+                      {t.description && ` · ${t.description}`}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewMode('playground')}
+                  className="mt-2 font-mono text-[9px] px-2 py-1 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]30 min-h-[44px] min-w-[44px]"
+                  title="Open in playground"
+                >
+                  Test
+                </button>
               </div>
             ))}
           </div>

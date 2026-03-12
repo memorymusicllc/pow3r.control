@@ -97,8 +97,14 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
     .filter(Boolean) as GuardianGate[]
 
   const handleStartRun = () => {
+    if (stepIds.length === 0) return
     setIsRunning(true)
-    startSimulatedRun(workflowId, stepIds)
+    try {
+      startSimulatedRun(workflowId, stepIds)
+    } catch {
+      setIsRunning(false)
+      setFetchError('Failed to start workflow run')
+    }
   }
 
   const handleStopRun = () => {
@@ -118,7 +124,9 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
           {!isRunning ? (
             <button
               onClick={handleStartRun}
-              className="font-mono text-[10px] px-3 py-1 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]30"
+              disabled={stepIds.length === 0}
+              className="font-mono text-[10px] px-3 py-1 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]30 disabled:opacity-40 disabled:cursor-not-allowed"
+              title={stepIds.length === 0 ? 'No steps defined' : 'Start simulated run'}
             >
               Start Run
             </button>
@@ -242,7 +250,12 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
                 ))}
             </div>
           ) : (
-            <p className="text-[10px] text-[var(--color-text-muted)]">Click Start Run to simulate execution.</p>
+            <div className="space-y-1">
+              <p className="text-[10px] text-[var(--color-text-muted)]">Click Start Run to simulate execution.</p>
+              <p className="text-[9px] text-[var(--color-text-muted)]">
+                Simulated run for demo. Connect to Pow3r Orchestrator for live execution.
+              </p>
+            </div>
           )}
           {workflow.evidence_policy && (
             <div className="mt-4">

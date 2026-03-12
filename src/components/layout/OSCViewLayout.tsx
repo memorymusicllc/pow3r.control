@@ -18,6 +18,8 @@ interface OSCViewLayoutProps {
   children: React.ReactNode
   title?: string
   headerRight?: React.ReactNode
+  /** When set, shows [x] to hide panel (in addition to [-] collapse) */
+  onClose?: () => void
   className?: string
 }
 
@@ -28,6 +30,7 @@ export function OSCViewLayout({
   children,
   title = 'Control',
   headerRight,
+  onClose,
   className = '',
 }: OSCViewLayoutProps) {
   const hasTabs = tabs.length > 0
@@ -63,7 +66,18 @@ export function OSCViewLayout({
     <div className={`min-h-full bg-[var(--color-bg-deep)] text-[var(--color-text-primary)] ${className}`}>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg-surface)]/95 px-4 py-3">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h1>
-        {headerRight}
+        <div className="flex items-center gap-2">
+          {headerRight}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] font-mono text-sm min-w-[32px] min-h-[32px] flex items-center justify-center rounded hover:bg-[var(--color-bg-card)]"
+              title="Hide panel"
+            >
+              x
+            </button>
+          )}
+        </div>
       </div>
 
       <div className={`flex ${hasTabs && (isNarrow ? 'flex-col pb-20' : 'flex-row')}`}>

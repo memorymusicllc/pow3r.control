@@ -32,6 +32,21 @@ export function WorkflowLibrary({ onRun, onViewLive, onView }: WorkflowLibraryPr
   const [apiWorkflows, setApiWorkflows] = useState<XmapWorkflow[]>([])
   const [viewingWorkflowId, setViewingWorkflowId] = useState<string | null>(null)
   const [viewingDefinition, setViewingDefinition] = useState<Record<string, unknown> | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const refresh = () => {
+    setRefreshing(true)
+    fetchWorkflowsCombined()
+      .then((res) => {
+        const list: XmapWorkflow[] = (res.workflows ?? []).map((w) => ({
+          workflow_id: w.id || w.workflowId || '',
+          workflow_type: toWorkflowType(w.workflow_type),
+        }))
+        setApiWorkflows(list)
+      })
+      .catch(() => {})
+      .finally(() => setRefreshing(false))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +108,14 @@ export function WorkflowLibrary({ onRun, onViewLive, onView }: WorkflowLibraryPr
           onChange={(e) => setSearch(e.target.value)}
           className="px-3 py-1.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-sm text-[var(--color-text-primary)] focus:border-[var(--color-cyan)] outline-none"
         />
+        <button
+          onClick={refresh}
+          disabled={refreshing}
+          className="font-mono text-[10px] px-3 py-1.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-panel)] disabled:opacity-50 min-h-[44px] min-w-[44px]"
+          title="Refresh workflow list"
+        >
+          {refreshing ? '…' : 'Refresh'}
+        </button>
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value as WorkflowType | 'all')}
@@ -144,7 +167,7 @@ function WorkflowViewModal({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg-deep)]/80" onClick={onClose}>
       <div
         className="max-w-2xl max-h-[80vh] w-full mx-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-panel)] shadow-xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

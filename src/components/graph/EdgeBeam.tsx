@@ -12,7 +12,8 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { Line as ThreeLine } from 'three'
 import type { XmapEdge } from '../../lib/types'
-import { EDGE_TYPE_STYLES } from '../../lib/types'
+import { getEdgeStyle } from '../../lib/types'
+import { useThemeStore } from '../../store/theme-store'
 import type { Position3D } from './use-force-layout-3d'
 
 interface EdgeBeamProps {
@@ -22,6 +23,7 @@ interface EdgeBeamProps {
   isSelected: boolean
   isConnectedToSelected: boolean
   isDimmed: boolean
+  layerOpacity?: number
   onClick: () => void
 }
 
@@ -35,12 +37,14 @@ export function EdgeBeam({
   isSelected,
   isConnectedToSelected,
   isDimmed,
+  layerOpacity = 1,
   onClick,
 }: EdgeBeamProps) {
   const lineRef = useRef<ThreeLine>(null!)
   const particlesRef = useRef<THREE.Points>(null)
+  const resolved = useThemeStore((s) => s.resolved)
 
-  const style = EDGE_TYPE_STYLES[edge.edge_type] ?? EDGE_TYPE_STYLES.data
+  const style = getEdgeStyle(edge.edge_type, resolved)
   const edgeColor = new THREE.Color(style.color)
 
   const { curve } = useMemo(() => {
@@ -99,8 +103,11 @@ export function EdgeBeam({
     positions.needsUpdate = true
   })
 
-  const lineOpacity = isDimmed ? 0.04 : isSelected ? 0.9 : isConnectedToSelected ? 0.5 : 0.2
-  const particleOpacity = isDimmed ? 0 : isSelected ? 0.9 : isConnectedToSelected ? 0.5 : 0.25
+  const isLight = resolved === 'light'
+  const baseLine = isDimmed ? 0.04 : isSelected ? 0.9 : isConnectedToSelected ? 0.5 : 0.2
+  const baseParticle = isDimmed ? 0 : isSelected ? 0.9 : isConnectedToSelected ? 0.5 : 0.25
+  const lineOpacity = (isLight ? Math.min(1, baseLine * 3.0) : baseLine) * layerOpacity
+  const particleOpacity = (isLight ? Math.min(1, baseParticle * 2.5) : baseParticle) * layerOpacity
 
   useEffect(() => {
     if (lineRef.current) {
@@ -126,15 +133,15 @@ export function EdgeBeam({
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      {/* Glow tube (visible) */}
-      {(isSelected || isConnectedToSelected) && (
+      {/* Solid tube: always visible in light mode, glow in dark mode when selected */}
+      {(isSelected || isConnectedToSelected || isLight) && (
         <mesh>
-          <tubeGeometry args={[curve, 16, 0.15, 4, false]} />
+          <tubeGeometry args={[curve, 16, isLight ? 0.3 : 0.15, 6, false]} />
           <meshBasicMaterial
             color={edgeColor}
             transparent
-            opacity={isSelected ? 0.3 : 0.1}
-            depthWrite={false}
+            opacity={(isLight ? (isSelected ? 0.85 : isConnectedToSelected ? 0.65 : 0.5) : (isSelected ? 0.3 : 0.1)) * layerOpacity}
+            depthWrite={isLight}
           />
         </mesh>
       )}
@@ -155,13 +162,13 @@ export function EdgeBeam({
             />
           </bufferGeometry>
           <pointsMaterial
-            color={edgeColor}
-            size={isSelected ? 1.8 : 0.9}
+            color={isLight ? edgeColor : edgeColor}
+            size={isLight ? (isSelected ? 2.2 : 1.4) : (isSelected ? 1.8 : 0.9)}
             transparent
-            opacity={particleOpacity * 1.3}
+            opacity={particleOpacity * (isLight ? 1.8 : 1.3)}
             sizeAttenuation
             depthWrite={false}
-            blending={THREE.AdditiveBlending}
+            blending={isLight ? THREE.NormalBlending : THREE.AdditiveBlending}
           />
         </points>
       )}
@@ -169,11 +176,11 @@ export function EdgeBeam({
       {/* Arrow indicator near target */}
       {!isDimmed && (
         <mesh position={curve.getPoint(0.85).toArray()}>
-          <coneGeometry args={[0.3, 0.8, 4]} />
+          <coneGeometry args={[isLight ? 0.4 : 0.3, isLight ? 1.0 : 0.8, 4]} />
           <meshBasicMaterial
             color={edgeColor}
-            transparent
-            opacity={lineOpacity * 0.8}
+            transparent={!isLight}
+            opacity={isLight ? 1.0 : lineOpacity * 0.8}
           />
         </mesh>
       )}
