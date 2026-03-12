@@ -24,8 +24,18 @@ interface SSEOptions {
 export function connectXSystemSSE(options: SSEOptions): () => void {
   let eventSource: EventSource | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let reconnectDelay = 1000
+  let reconnectDelay = 2000
   let stopped = false
+  let failCount = 0
+
+  async function checkEndpoint(): Promise<boolean> {
+    try {
+      const res = await fetch(SSE_URL, { method: 'HEAD' })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
 
   function connect() {
     if (stopped) return
@@ -34,7 +44,8 @@ export function connectXSystemSSE(options: SSEOptions): () => void {
       eventSource = new EventSource(SSE_URL)
 
       eventSource.onopen = () => {
-        reconnectDelay = 1000
+        reconnectDelay = 2000
+        failCount = 0
         options.onConnect()
       }
 
@@ -54,30 +65,35 @@ export function connectXSystemSSE(options: SSEOptions): () => void {
           }
           options.onEvent(event)
         } catch {
-          // Skip malformed events
+          // skip malformed events
         }
       }
 
       eventSource.onerror = () => {
         eventSource?.close()
         options.onDisconnect()
+        failCount++
 
-        if (!stopped) {
+        if (!stopped && failCount < 5) {
           reconnectTimer = setTimeout(() => {
-            reconnectDelay = Math.min(reconnectDelay * 2, 30000)
+            reconnectDelay = Math.min(reconnectDelay * 2, 60000)
             connect()
           }, reconnectDelay)
         }
       }
     } catch {
       options.onDisconnect()
-      if (!stopped) {
-        reconnectTimer = setTimeout(connect, reconnectDelay)
-      }
     }
   }
 
-  connect()
+  checkEndpoint().then((available) => {
+    if (available && !stopped) {
+      connect()
+    } else {
+      console.warn('[X-System SSE] Endpoint unavailable, skipping connection')
+      options.onDisconnect()
+    }
+  })
 
   return () => {
     stopped = true

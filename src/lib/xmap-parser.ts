@@ -128,14 +128,39 @@ export async function loadXmapConfig(source: string | Record<string, unknown>): 
 
   if (isXmapV7(data)) {
     const d = data as Record<string, unknown>
-    if (!d.manifest) {
-      d.manifest = {
-        manifest_id: `${(d.metadata as Record<string, unknown>)?.id ?? 'unknown'}-manifest`,
-        manifest_version: '1.0.0',
-        manifest_status: 'validated',
-      }
+    const rawMeta = (d.metadata ?? {}) as Record<string, unknown>
+    const rawManifest = (d.manifest ?? {}) as Record<string, unknown>
+    const rawCompliance = (d.compliance ?? {}) as Record<string, unknown>
+
+    d.metadata = {
+      id: String(rawMeta.id ?? 'unknown'),
+      version: String(rawMeta.version ?? '1.0.0'),
+      created_at: String(rawMeta.created_at ?? rawMeta.createdAt ?? ''),
+      created_by: String(rawMeta.created_by ?? rawMeta.createdBy ?? ''),
+      last_modified_at: rawMeta.last_modified_at ? String(rawMeta.last_modified_at) : undefined,
+      last_modified_by: rawMeta.last_modified_by ? String(rawMeta.last_modified_by) : undefined,
     }
-    if (!d.guardian) d.guardian = []
+    d.manifest = {
+      manifest_id: String(rawManifest.manifest_id ?? rawManifest.manifestId ?? ''),
+      manifest_version: String(rawManifest.manifest_version ?? rawManifest.manifestVersion ?? '1.0.0'),
+      manifest_status: String(rawManifest.manifest_status ?? rawManifest.manifestStatus ?? 'validated'),
+    }
+    d.compliance = {
+      compliance_score: typeof rawCompliance.compliance_score === 'number' ? rawCompliance.compliance_score : undefined,
+      compliance_status: rawCompliance.compliance_status ? String(rawCompliance.compliance_status) : undefined,
+    }
+    if (!Array.isArray(d.nodes)) d.nodes = []
+    if (!Array.isArray(d.edges)) d.edges = []
+    if (!Array.isArray(d.workflows)) d.workflows = []
+    if (!Array.isArray(d.guardian)) d.guardian = []
+    if (!Array.isArray(d.validator)) d.validator = []
+    if (!Array.isArray(d.tests)) d.tests = []
+    if (!Array.isArray(d.telemetry)) d.telemetry = []
+    if (!Array.isArray(d.provenance)) d.provenance = []
+    if (!Array.isArray(d.agent_views)) d.agent_views = []
+    if (!Array.isArray(d.ui_contracts)) d.ui_contracts = []
+    if (!d.config_controls) d.config_controls = {}
+
     return d as unknown as XmapV7Config
   }
 
