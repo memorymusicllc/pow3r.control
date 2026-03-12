@@ -225,7 +225,7 @@ export default function App() {
             <span className="text-[var(--color-text-muted)]">.</span>
             <span className="text-[var(--color-text-primary)]">control</span>
           </h1>
-          {layout.breakpoint !== 'compact' && (
+          {layout.breakpoint !== 'compact' && config.metadata && (
             <>
               <div className="h-4 w-px bg-[var(--color-border)]" />
               <span className="font-mono text-[10px] text-[var(--color-text-muted)] truncate max-w-[120px]">
@@ -233,7 +233,7 @@ export default function App() {
               </span>
             </>
           )}
-          {config.manifest.manifest_status && layout.breakpoint !== 'compact' && (
+          {config.manifest?.manifest_status && layout.breakpoint !== 'compact' && (
             <span
               className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold uppercase ${
                 config.manifest.manifest_status === 'deployed'
@@ -264,11 +264,11 @@ export default function App() {
         <aside className="nav-sidebar hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] py-3">
           <ViewSwitcher orientation="vertical" />
           <div className="mt-auto flex flex-col gap-2">
-            {config.compliance.compliance_score !== undefined && (
+            {config.compliance?.compliance_score !== undefined && (
               <div className="flex flex-col items-center gap-0.5">
                 <span className="font-mono text-[8px] text-[var(--color-text-muted)]">Comp</span>
                 <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                  {Math.round((config.compliance.compliance_score ?? 0) * 100)}%
+                  {Math.round((config.compliance?.compliance_score ?? 0) * 100)}%
                 </span>
               </div>
             )}
@@ -401,7 +401,7 @@ export default function App() {
         )}
 
         {/* Workflow quick-access: show workflows from config */}
-        {config.workflows.length > 0 && !expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && showWorkflowsWidget && (
+        {(config.workflows?.length ?? 0) > 0 && !expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && showWorkflowsWidget && (
           <div className="absolute top-2 left-2 z-10">
             <div className="bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg p-2 space-y-1">
               <div className="flex items-center justify-between">
@@ -416,7 +416,7 @@ export default function App() {
                   ×
                 </button>
               </div>
-              {config.workflows.map((wf) => (
+              {(config.workflows ?? []).map((wf) => (
                 <div key={wf.workflow_id} className="flex items-center gap-1">
                   <button
                     onClick={() => expandWorkflow(wf.workflow_id)}
@@ -456,25 +456,25 @@ export default function App() {
               Collapse All ({inlineExpandedNodeIds.size})
             </button>
           )}
-          {config.compliance.compliance_score !== undefined && (
+          {config.compliance?.compliance_score !== undefined && (
             <div className="flex items-center gap-1.5 min-h-[32px]">
               <span className="font-mono text-[9px] text-[var(--color-text-muted)]">Compliance</span>
               <div className="w-16 h-1.5 bg-[var(--color-bg-card)] rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
-                    width: `${(config.compliance.compliance_score ?? 0) * 100}%`,
+                    width: `${(config.compliance?.compliance_score ?? 0) * 100}%`,
                     backgroundColor:
-                      (config.compliance.compliance_score ?? 0) > 0.8
+                      (config.compliance?.compliance_score ?? 0) > 0.8
                         ? 'var(--color-success)'
-                        : (config.compliance.compliance_score ?? 0) > 0.5
+                        : (config.compliance?.compliance_score ?? 0) > 0.5
                           ? 'var(--color-amber)'
                           : 'var(--color-error)',
                   }}
                 />
               </div>
               <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                {Math.round((config.compliance.compliance_score ?? 0) * 100)}%
+                {Math.round((config.compliance?.compliance_score ?? 0) * 100)}%
               </span>
             </div>
           )}

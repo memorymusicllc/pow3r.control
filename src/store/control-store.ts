@@ -229,8 +229,26 @@ export const useControlStore = create<ControlState>((set) => ({
   })(),
   showCanvasInstructions: true,
 
-  loadConfig: (config) =>
-    set({ config, configLoadedAt: new Date().toISOString(), isLoading: false, error: null }),
+  loadConfig: (config) => {
+    const safeConfig = {
+      ...config,
+      metadata: config.metadata ?? { id: 'unknown', version: '0.0.0', created_at: '', created_by: '' },
+      manifest: config.manifest ?? { manifest_id: '', manifest_version: '', manifest_status: 'draft' as const },
+      nodes: config.nodes ?? [],
+      edges: config.edges ?? [],
+      workflows: config.workflows ?? [],
+      guardian: config.guardian ?? [],
+      validator: config.validator ?? [],
+      tests: config.tests ?? [],
+      telemetry: config.telemetry ?? [],
+      config_controls: config.config_controls ?? {},
+      provenance: config.provenance ?? [],
+      agent_views: config.agent_views ?? [],
+      ui_contracts: config.ui_contracts ?? [],
+      compliance: config.compliance ?? {},
+    }
+    set({ config: safeConfig as typeof config, configLoadedAt: new Date().toISOString(), isLoading: false, error: null })
+  },
 
   setViewMode: (viewMode) => set({ viewMode }),
   setLayoutMode: (layoutMode) => set({ layoutMode }),
