@@ -116,6 +116,62 @@ function mapV5EdgeType(type: string): XmapEdge['edge_type'] {
   return map[type] ?? (type as XmapEdge['edge_type']) ?? 'data'
 }
 
+function str(v: unknown): string {
+  if (v == null) return ''
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v)
+  return ''
+}
+
+function strArr(v: unknown): string[] {
+  if (!Array.isArray(v)) return []
+  return v.map((item) => str(item)).filter(Boolean)
+}
+
+function sanitizeNode(raw: Record<string, unknown>): XmapNode {
+  return {
+    node_id: str(raw.node_id ?? raw.id),
+    node_type: (str(raw.node_type ?? raw.type) || 'service') as XmapNode['node_type'],
+    name: str(raw.name) || str(raw.node_id ?? raw.id) || 'unnamed',
+    description: str(raw.description) || undefined,
+    tech_stack: strArr(raw.tech_stack),
+    deployment_targets: strArr(raw.deployment_targets),
+    status: (str(raw.status) || 'unknown') as XmapNode['status'],
+    owner: str(raw.owner) || undefined,
+    required_tests: strArr(raw.required_tests),
+    telemetry_endpoints: strArr(raw.telemetry_endpoints),
+    privileges: typeof raw.privileges === 'object' && raw.privileges !== null && !Array.isArray(raw.privileges)
+      ? Object.fromEntries(Object.entries(raw.privileges as Record<string, unknown>).map(([k, v]) => [k, str(v)]))
+      : undefined,
+    immutable_flags: strArr(raw.immutable_flags),
+    function: str(raw.function) || undefined,
+    process_details: str(raw.process_details) || undefined,
+    features: strArr(raw.features),
+    integration: str(raw.integration) || undefined,
+    best_practices: strArr(raw.best_practices),
+    memory_pattern: str(raw.memory_pattern) || undefined,
+    infrastructure: str(raw.infrastructure) || undefined,
+    latency_target: str(raw.latency_target) || undefined,
+    scaling: str(raw.scaling) || undefined,
+    key_data_types: strArr(raw.key_data_types),
+    line_types: strArr(raw.line_types),
+  }
+}
+
+function sanitizeEdge(raw: Record<string, unknown>): XmapEdge {
+  return {
+    edge_id: str(raw.edge_id ?? raw.id),
+    from_node: str(raw.from_node),
+    to_node: str(raw.to_node),
+    edge_type: (str(raw.edge_type) || 'data') as XmapEdge['edge_type'],
+    permission_schema: typeof raw.permission_schema === 'object' && raw.permission_schema !== null
+      ? Object.fromEntries(Object.entries(raw.permission_schema as Record<string, unknown>).map(([k, v]) => [k, str(v)]))
+      : undefined,
+    allowed_agents_roles: strArr(raw.allowed_agents_roles),
+    encryption_policy: str(raw.encryption_policy) || undefined,
+  }
+}
+
 export async function loadXmapConfig(source: string | Record<string, unknown>): Promise<XmapV7Config> {
   let data: Record<string, unknown>
 
@@ -160,6 +216,9 @@ export async function loadXmapConfig(source: string | Record<string, unknown>): 
     if (!Array.isArray(d.agent_views)) d.agent_views = []
     if (!Array.isArray(d.ui_contracts)) d.ui_contracts = []
     if (!d.config_controls) d.config_controls = {}
+
+    d.nodes = (d.nodes as Array<Record<string, unknown>>).map(sanitizeNode)
+    d.edges = (d.edges as Array<Record<string, unknown>>).map(sanitizeEdge)
 
     return d as unknown as XmapV7Config
   }

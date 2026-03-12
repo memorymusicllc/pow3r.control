@@ -60,6 +60,13 @@ import {
   selectGuardianGates,
 } from './store/control-store'
 
+function safeText(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return ''
+}
+
 export default function App() {
   const loadConfig = useControlStore((s) => s.loadConfig)
   const config = useControlStore((s) => s.config)
@@ -229,7 +236,7 @@ export default function App() {
             <>
               <div className="h-4 w-px bg-[var(--color-border)]" />
               <span className="font-mono text-[10px] text-[var(--color-text-muted)] truncate max-w-[120px]">
-                {config.metadata.id} v{config.metadata.version}
+                {safeText(config.metadata?.id)} v{safeText(config.metadata?.version)}
               </span>
             </>
           )}
@@ -243,7 +250,7 @@ export default function App() {
                     : 'bg-[#FFB30020] text-[var(--color-amber)]'
               }`}
             >
-              {config.manifest.manifest_status}
+              {safeText(config.manifest?.manifest_status)}
             </span>
           )}
           {layout.breakpoint !== 'compact' && <ConfigSelector />}
