@@ -85,8 +85,6 @@ export default function App() {
   const expandWorkflow = useControlStore((s) => s.expandWorkflow)
   const showGovernanceOverlay = useControlStore((s) => s.showGovernanceOverlay)
   const toggleGovernanceOverlay = useControlStore((s) => s.toggleGovernanceOverlay)
-  const inlineExpandedNodeIds = useControlStore((s) => s.inlineExpandedNodeIds)
-  const collapseAllInline = useControlStore((s) => s.collapseAllInline)
   const isReviewMode = useControlStore((s) => s.isReviewMode)
   const showControlSurface = useControlStore((s) => s.showControlSurface)
   const toggleControlSurface = useControlStore((s) => s.toggleControlSurface)
@@ -267,18 +265,10 @@ export default function App() {
 
       {/* Body: sidebar (landscape) + main */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* Left nav - landscape only (CSS media query) */}
-        <aside className="nav-sidebar hidden w-16 shrink-0 flex-col items-center gap-2 border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] py-3">
+        {/* Left nav rail - landscape only (M3: 80dp width, 24dp icons, labels below) */}
+        <aside className="nav-sidebar hidden shrink-0 flex-col items-center border-r border-[var(--color-border)] bg-[var(--color-bg-surface)] py-2 overflow-y-auto" style={{ width: 80 }}>
           <ViewSwitcher orientation="vertical" />
-          <div className="mt-auto flex flex-col gap-2">
-            {config.compliance?.compliance_score !== undefined && (
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="font-mono text-[8px] text-[var(--color-text-muted)]">Comp</span>
-                <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                  {Math.round((config.compliance?.compliance_score ?? 0) * 100)}%
-                </span>
-              </div>
-            )}
+          <div className="mt-auto pt-2 border-t border-[var(--color-border)] w-full flex flex-col items-center">
             <ViewPanelMenu placement="right" panels={viewPanelItems} />
           </div>
         </aside>
@@ -449,45 +439,10 @@ export default function App() {
         </main>
       </div>
 
-      {/* Bottom nav - portrait only (CSS media query) */}
-      <footer className="nav-footer flex items-center justify-between px-4 py-2 bg-[var(--color-bg-surface)] border-t border-[var(--color-border)] z-30 shrink-0">
+      {/* Bottom nav - portrait only (M3: 80dp height, 48dp touch targets, labels below icons) */}
+      <footer className="nav-footer flex items-end px-2 bg-[var(--color-bg-surface)] border-t border-[var(--color-border)] z-30 shrink-0" style={{ minHeight: 72 }}>
         <ViewSwitcher />
-
-        <div className="flex items-center gap-2">
-          {inlineExpandedNodeIds.size > 0 && (
-            <button
-              onClick={collapseAllInline}
-              className="font-mono text-[9px] px-2 py-1 rounded transition-colors text-[var(--color-amber)] bg-[var(--color-bg-card)] hover:bg-[var(--color-amber)]/20 border border-[var(--color-amber)]/30 min-h-[32px] min-w-[32px] flex items-center justify-center"
-              title={`Collapse ${inlineExpandedNodeIds.size} expanded node${inlineExpandedNodeIds.size > 1 ? 's' : ''}`}
-            >
-              Collapse All ({inlineExpandedNodeIds.size})
-            </button>
-          )}
-          {config.compliance?.compliance_score !== undefined && (
-            <div className="flex items-center gap-1.5 min-h-[32px]">
-              <span className="font-mono text-[9px] text-[var(--color-text-muted)]">Compliance</span>
-              <div className="w-16 h-1.5 bg-[var(--color-bg-card)] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${(config.compliance?.compliance_score ?? 0) * 100}%`,
-                    backgroundColor:
-                      (config.compliance?.compliance_score ?? 0) > 0.8
-                        ? 'var(--color-success)'
-                        : (config.compliance?.compliance_score ?? 0) > 0.5
-                          ? 'var(--color-amber)'
-                          : 'var(--color-error)',
-                  }}
-                />
-              </div>
-              <span className="font-mono text-[10px] text-[var(--color-text-secondary)]">
-                {Math.round((config.compliance?.compliance_score ?? 0) * 100)}%
-              </span>
-            </div>
-          )}
-
-          <ViewPanelMenu placement="top" panels={viewPanelItems} />
-        </div>
+        <ViewPanelMenu placement="top" panels={viewPanelItems} />
       </footer>
     </div>
     </NodeExpansionProvider>
