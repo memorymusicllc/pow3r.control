@@ -102,7 +102,7 @@ export default function App() {
   const setConnected = useXSystemStore((s) => s.setConnected)
   const fetchXFilesCases = useXSystemStore((s) => s.fetchXFilesCases)
   const updateStepFromEvent = useWorkflowExecutionStore((s) => s.updateStepFromEvent)
-  const patchNodeStatus = useControlStore((s) => s.patchNodeStatus)
+  const patchNodeStatuses = useControlStore((s) => s.patchNodeStatuses)
 
   const viewPanelItems = [
     { id: 'gates', label: 'Gates', isActive: showGuardianDashboard, onToggle: toggleGuardianDashboard },
@@ -146,6 +146,7 @@ export default function App() {
   const layout = useLayoutMode()
 
   const [configError, setConfigError] = useState<string | null>(null)
+  const [configRetryKey, setConfigRetryKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -171,7 +172,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [loadConfig])
+  }, [loadConfig, configRetryKey])
 
   useEffect(() => {
     fetchXFilesCases()
@@ -197,6 +198,23 @@ export default function App() {
   }, [addEvent, setConnected, updateStepFromEvent, fetchXFilesCases])
 
   useEffect(() => {
+    let pending: Array<{ nodeId: string; patch: Partial<import('./lib/types').XmapNode> }> = []
+    let rafId: number | null = null
+
+    const flush = () => {
+      if (pending.length === 0) return
+      const batch = pending
+      pending = []
+      rafId = null
+      patchNodeStatuses(batch)
+    }
+
+    const scheduleFlush = () => {
+      if (rafId == null) {
+        rafId = requestAnimationFrame(flush)
+      }
+    }
+
     const dispose = connectXmapWebSocket({
       onChange: (event) => {
         const d = event.data as Record<string, unknown>
@@ -205,14 +223,18 @@ export default function App() {
           if (d.status) patch.status = d.status
           if (d.healthScore !== undefined) patch.healthScore = d.healthScore
           if (d.phase) patch.phase = d.phase
-          patchNodeStatus(d.nodeId, patch as Partial<import('./lib/types').XmapNode>)
+          pending.push({ nodeId: d.nodeId, patch: patch as Partial<import('./lib/types').XmapNode> })
+          scheduleFlush()
         }
       },
       onConnect: () => console.log('[XMAP WS] Connected'),
       onDisconnect: () => console.log('[XMAP WS] Disconnected'),
     })
-    return dispose
-  }, [patchNodeStatus])
+    return () => {
+      dispose()
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
+  }, [patchNodeStatuses])
 
   if (!config) {
     return (
@@ -222,9 +244,15 @@ export default function App() {
             <>
               <p className="font-mono text-sm text-red-400 mb-2">Config load failed</p>
               <p className="font-mono text-xs text-[var(--color-text-muted)] mb-4">{configError}</p>
-              <p className="font-mono text-[10px] text-[var(--color-text-muted)]">
-                Check config.superbots.link is reachable. Try Config selector when available.
+              <p className="font-mono text-[10px] text-[var(--color-text-muted)] mb-4">
+                Check config.superbots.link is reachable.
               </p>
+              <button
+                onClick={() => setConfigRetryKey((k) => k + 1)}
+                className="font-mono text-[10px] px-4 py-2 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]30"
+              >
+                Retry
+              </button>
             </>
           ) : (
             <>

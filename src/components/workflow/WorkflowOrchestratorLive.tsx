@@ -14,6 +14,9 @@ import { fetchWorkflowView } from '../../lib/workflow-library-api'
 import { McpPacketViewer } from '../panels/McpPacketViewer'
 import type { WorkflowStep, GuardianGate, XmapWorkflow } from '../../lib/types'
 
+/** Stable empty array to avoid selector returning new reference each render (prevents React #185) */
+const EMPTY_EXECUTIONS: import('../../store/workflow-execution-store').StepExecution[] = []
+
 interface WorkflowOrchestratorLiveProps {
   workflowId: string
   onClose: () => void
@@ -41,7 +44,7 @@ function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow |
 
 export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrchestratorLiveProps) {
   const config = useControlStore((s) => s.config)
-  const executions = useWorkflowExecutionStore((s) => s.executions[workflowId] ?? [])
+  const executions = useWorkflowExecutionStore((s) => s.executions[workflowId] ?? EMPTY_EXECUTIONS)
   const runWorkflow = useWorkflowExecutionStore((s) => s.runWorkflow)
   const stopRun = useWorkflowExecutionStore((s) => s.stopRun)
   const runLoading = useWorkflowExecutionStore((s) => s.runLoading)

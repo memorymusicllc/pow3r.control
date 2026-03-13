@@ -113,6 +113,8 @@ interface ControlState {
 
   /** Update a node's status from real-time XMAP WebSocket events */
   patchNodeStatus: (nodeId: string, patch: Partial<XmapNode>) => void
+  /** Batch multiple node patches in one update (prevents React #185 from rapid WS messages) */
+  patchNodeStatuses: (patches: Array<{ nodeId: string; patch: Partial<XmapNode> }>) => void
 }
 
 // Selectors (derived data)
@@ -395,6 +397,17 @@ export const useControlStore = create<ControlState>((set) => ({
       const nodes = state.config.nodes.map((n) =>
         n.node_id === nodeId ? { ...n, ...patch } : n
       )
+      return { config: { ...state.config, nodes } }
+    }),
+
+  patchNodeStatuses: (patches) =>
+    set((state) => {
+      if (!state.config || patches.length === 0) return {}
+      const patchMap = new Map(patches.map((p) => [p.nodeId, p.patch]))
+      const nodes = state.config.nodes.map((n) => {
+        const patch = patchMap.get(n.node_id)
+        return patch ? { ...n, ...patch } : n
+      })
       return { config: { ...state.config, nodes } }
     }),
 }))

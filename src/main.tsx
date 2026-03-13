@@ -5,7 +5,11 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import './index.css'
 import App from './App'
 
-initTheme()
+try {
+  initTheme()
+} catch (e) {
+  console.warn('[pow3r.control] Theme init failed, using defaults:', e)
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

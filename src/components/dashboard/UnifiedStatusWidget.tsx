@@ -19,19 +19,16 @@ export function UnifiedStatusWidget() {
   const isConnected = useXSystemStore((s) => s.isConnected)
   const eventCount = useXSystemStore((s) => s.eventCount)
   const recentExecutions = useWorkflowExecutionStore((s) => s.recentExecutions)
-  const fetchRecentExecutions = useWorkflowExecutionStore((s) => s.fetchRecentExecutions)
   const guardianSummary = useGuardianStore((s) => s.summary)
-  const fetchGates = useGuardianStore((s) => s.fetchGates)
   const plans = usePlanStore((s) => s.plans)
   const inProgress = usePlanStore((s) => s.inProgress)
   const incompletePlans = usePlanStore((s) => s.incompletePlans)
-  const fetchPlans = usePlanStore((s) => s.fetchPlans)
 
   useEffect(() => {
-    fetchPlans()
-    fetchGates()
-    fetchRecentExecutions()
-  }, [fetchPlans, fetchGates, fetchRecentExecutions])
+    usePlanStore.getState().fetchPlans()
+    useGuardianStore.getState().fetchGates()
+    useWorkflowExecutionStore.getState().fetchRecentExecutions()
+  }, [])
 
   const nodeCount = config?.nodes?.length ?? 0
   const openCases = xfilesCases.filter((c) => c.status !== 'closed').length

@@ -15,9 +15,10 @@ export function GuardianSummaryWidget() {
   const setViewMode = useControlStore((s) => s.setViewMode)
   const gates = useGuardianStore((s) => s.gates)
   const summary = useGuardianStore((s) => s.summary)
-  const fetchGates = useGuardianStore((s) => s.fetchGates)
 
-  useEffect(() => { fetchGates() }, [fetchGates])
+  useEffect(() => {
+    useGuardianStore.getState().fetchGates()
+  }, [])
 
   if (gates.length === 0) return null
 

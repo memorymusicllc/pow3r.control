@@ -70,15 +70,15 @@ export const useThemeStore = create<ThemeState>()(
 /** Initialize theme before first paint. Call from main.tsx. */
 export function initTheme() {
   if (typeof window === 'undefined') return
-  const raw = localStorage.getItem(STORAGE_KEY)
   let theme: ThemeMode = 'dark'
-  if (raw) {
-    try {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
       const parsed = JSON.parse(raw) as { state?: { theme?: ThemeMode } }
       theme = (parsed?.state?.theme as ThemeMode) ?? 'dark'
-    } catch {
-      theme = 'dark'
     }
+  } catch {
+    theme = 'dark'
   }
   const resolved = getResolvedTheme(theme)
   applyTheme(resolved)

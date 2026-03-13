@@ -89,13 +89,27 @@ export async function fetchAvailableConfigs(): Promise<ConfigOption[]> {
   return AVAILABLE_CONFIGS
 }
 
+const CONFIG_FETCH_TIMEOUT_MS = 15000
+
 export async function loadConfigByName(id: string): Promise<XmapV7Config> {
   const url = AVAILABLE_CONFIGS.find((c) => c.id === id)?.url ?? `${API_BASE}/xmap/config/${id}`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Config ${id} failed: ${res.status} ${res.statusText}`)
-  const json = await res.json() as { success?: boolean; data?: Record<string, unknown> }
-  const data = json.success && json.data ? json.data : json
-  return await loadXmapConfig(data as Record<string, unknown>)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), CONFIG_FETCH_TIMEOUT_MS)
+  try {
+    const res = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    if (!res.ok) throw new Error(`Config ${id} failed: ${res.status} ${res.statusText}`)
+    const json = await res.json() as { success?: boolean; data?: Record<string, unknown> }
+    const data = json.success && json.data ? json.data : json
+    return await loadXmapConfig(data as Record<string, unknown>)
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err instanceof Error) {
+      if (err.name === 'AbortError') throw new Error(`Config load timed out after ${CONFIG_FETCH_TIMEOUT_MS / 1000}s`)
+      throw err
+    }
+    throw err
+  }
 }
 
 export async function loadConfigFromUrl(url: string): Promise<XmapV7Config> {

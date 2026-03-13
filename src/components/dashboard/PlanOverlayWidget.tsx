@@ -15,9 +15,10 @@ export function PlanOverlayWidget() {
   const incompletePlans = usePlanStore((s) => s.incompletePlans)
   const totalPlans = usePlanStore((s) => s.totalPlans)
   const loading = usePlanStore((s) => s.loading)
-  const fetchPlans = usePlanStore((s) => s.fetchPlans)
 
-  useEffect(() => { fetchPlans() }, [fetchPlans])
+  useEffect(() => {
+    usePlanStore.getState().fetchPlans()
+  }, [])
 
   const incomplete = plans.filter((p) => (p.implementationLevel ?? 0) < 100).slice(0, 8)
 

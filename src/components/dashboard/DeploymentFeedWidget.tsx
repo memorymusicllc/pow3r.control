@@ -11,9 +11,10 @@ import { useWorkflowExecutionStore } from '../../store/workflow-execution-store'
 
 export function DeploymentFeedWidget() {
   const recentExecutions = useWorkflowExecutionStore((s) => s.recentExecutions)
-  const fetchRecentExecutions = useWorkflowExecutionStore((s) => s.fetchRecentExecutions)
 
-  useEffect(() => { fetchRecentExecutions() }, [fetchRecentExecutions])
+  useEffect(() => {
+    useWorkflowExecutionStore.getState().fetchRecentExecutions()
+  }, [])
 
   const recent = recentExecutions.slice(0, 10)
 
