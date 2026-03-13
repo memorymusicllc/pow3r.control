@@ -24,7 +24,8 @@ function inferMcpRequest(step: WorkflowStep): { name: string; server?: string; a
 }
 
 function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow | null {
-  const rawSteps = (def.steps ?? []) as Array<Record<string, unknown>>
+  const data = (def.workflowData ?? def) as Record<string, unknown>
+  const rawSteps = (data.steps ?? def.steps ?? []) as Array<Record<string, unknown>>
   const steps: WorkflowStep[] = rawSteps.map((s) => ({
     step_id: String(s.step_id ?? s.stepId ?? s.id ?? ''),
     node: String(s.node ?? s.server ?? 'unknown'),
@@ -32,9 +33,9 @@ function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow |
   }))
   return {
     workflow_id: id,
-    workflow_type: (def.workflow_type ?? def.type ?? 'deployment') as XmapWorkflow['workflow_type'],
+    workflow_type: (data.workflow_type ?? data.type ?? def.type ?? 'deployment') as XmapWorkflow['workflow_type'],
     steps,
-    guardian_gates: (def.guardian_gates ?? []) as string[],
+    guardian_gates: (data.guardian_gates ?? def.guardian_gates ?? []) as string[],
   }
 }
 
