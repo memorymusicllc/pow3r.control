@@ -110,6 +110,9 @@ interface ControlState {
   collapseAllInline: () => void
   /** Store fetched sub-graph data for a node */
   setExpansionCache: (nodeId: string, data: ExpansionCacheEntry) => void
+
+  /** Update a node's status from real-time XMAP WebSocket events */
+  patchNodeStatus: (nodeId: string, patch: Partial<XmapNode>) => void
 }
 
 // Selectors (derived data)
@@ -384,5 +387,14 @@ export const useControlStore = create<ControlState>((set) => ({
       const cache = new Map(state.expansionCache)
       cache.set(nodeId, data)
       return { expansionCache: cache }
+    }),
+
+  patchNodeStatus: (nodeId, patch) =>
+    set((state) => {
+      if (!state.config) return {}
+      const nodes = state.config.nodes.map((n) =>
+        n.node_id === nodeId ? { ...n, ...patch } : n
+      )
+      return { config: { ...state.config, nodes } }
     }),
 }))

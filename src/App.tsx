@@ -34,6 +34,7 @@ import { ControlSurface } from './components/controls/ControlSurface'
 import { useXSystemStore } from './store/x-system-store'
 import { useWorkflowExecutionStore } from './store/workflow-execution-store'
 import { connectXSystemSSE } from './lib/x-system-sse'
+import { connectXmapWebSocket } from './lib/xmap-websocket'
 import { ExpandedNodeView } from './components/expansion/ExpandedNodeView'
 import { ExpansionBreadcrumb } from './components/expansion/ExpansionBreadcrumb'
 import { WorkflowOrchestratorLive } from './components/workflow/WorkflowOrchestratorLive'
@@ -101,6 +102,7 @@ export default function App() {
   const setConnected = useXSystemStore((s) => s.setConnected)
   const fetchXFilesCases = useXSystemStore((s) => s.fetchXFilesCases)
   const updateStepFromEvent = useWorkflowExecutionStore((s) => s.updateStepFromEvent)
+  const patchNodeStatus = useControlStore((s) => s.patchNodeStatus)
 
   const viewPanelItems = [
     { id: 'gates', label: 'Gates', isActive: showGuardianDashboard, onToggle: toggleGuardianDashboard },
@@ -193,6 +195,24 @@ export default function App() {
     })
     return dispose
   }, [addEvent, setConnected, updateStepFromEvent, fetchXFilesCases])
+
+  useEffect(() => {
+    const dispose = connectXmapWebSocket({
+      onChange: (event) => {
+        const d = event.data as Record<string, unknown>
+        if (d?.nodeId && typeof d.nodeId === 'string') {
+          const patch: Record<string, unknown> = {}
+          if (d.status) patch.status = d.status
+          if (d.healthScore !== undefined) patch.healthScore = d.healthScore
+          if (d.phase) patch.phase = d.phase
+          patchNodeStatus(d.nodeId, patch as Partial<import('./lib/types').XmapNode>)
+        }
+      },
+      onConnect: () => console.log('[XMAP WS] Connected'),
+      onDisconnect: () => console.log('[XMAP WS] Disconnected'),
+    })
+    return dispose
+  }, [patchNodeStatus])
 
   if (!config) {
     return (
