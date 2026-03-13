@@ -5,8 +5,13 @@
  * - Computes 3D positions for XMAP v7 nodes using d3-force-3d
  * - Returns a Map of node_id -> {x, y, z} updated each simulation tick
  * - Stabilizes after initial layout, then freezes for performance
+ *
+ * React #185 fix: Effect depends on layoutKey (graph structure only), not nodes/edges
+ * references. XMAP WS status updates (patchNodeStatuses) create new node refs but same
+ * structure; without this, effect would re-run on every status batch -> sim restart ->
+ * tick cascade -> setPositions -> re-render -> loop.
  */
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import {
   forceSimulation,
   forceLink,
@@ -47,8 +52,20 @@ export function useForceLayout3D(
   const simRef = useRef<ReturnType<typeof forceSimulation> | null>(null)
   const positionsRef = useRef<Map<string, Position3D>>(new Map())
   const rafIdRef = useRef<number>(0)
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  nodesRef.current = nodes
+  edgesRef.current = edges
+
+  const layoutKey = useMemo(() => {
+    const nodeIds = nodes.map((n) => n.node_id).sort().join(',')
+    const edgeKeys = edges.map((e) => `${e.from_node}->${e.to_node}`).sort().join('|')
+    return `${nodeIds}|${edgeKeys}`
+  }, [nodes, edges])
 
   useEffect(() => {
+    const nodes = nodesRef.current
+    const edges = edgesRef.current
     if (nodes.length === 0) {
       setPositions(new Map())
       return
@@ -124,7 +141,7 @@ export function useForceLayout3D(
       cancelAnimationFrame(rafIdRef.current)
       simRef.current = null
     }
-  }, [nodes, edges])
+  }, [layoutKey])
 
   return positions
 }

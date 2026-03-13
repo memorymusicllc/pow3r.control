@@ -147,10 +147,21 @@ export function Graph2D() {
 
   // D3 force simulation with cluster forces for expanded groups
   // Use ref to avoid stale closure in tick handler and to throttle renders
+  // React #185 fix: layoutKey depends on structure only; patchNodeStatuses creates new
+  // compound refs without structure change -> avoid effect re-run -> no tick cascade
   const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map())
   const rafIdRef = useRef<number>(0)
+  const compoundRef = useRef(compound)
+  compoundRef.current = compound
+
+  const layoutKey = useMemo(() => {
+    const nodeIds = compound.nodes.map((n) => n.node_id).sort().join(',')
+    const edgeKeys = compound.edges.map((e) => `${e.from_node}->${e.to_node}`).sort().join('|')
+    return `${nodeIds}|${edgeKeys}|${containerSize.width}x${containerSize.height}`
+  }, [compound.nodes, compound.edges, containerSize.width, containerSize.height])
 
   useEffect(() => {
+    const compound = compoundRef.current
     if (compound.nodes.length === 0) return
 
     const prevPositions = positionsRef.current
@@ -250,7 +261,7 @@ export function Graph2D() {
       simulation.stop()
       cancelAnimationFrame(rafIdRef.current)
     }
-  }, [compound, containerSize])
+  }, [layoutKey])
 
   // Compute group boundaries from positions
   const groupBounds = useMemo(() => {

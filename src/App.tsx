@@ -200,12 +200,20 @@ export default function App() {
   useEffect(() => {
     let pending: Array<{ nodeId: string; patch: Partial<import('./lib/types').XmapNode> }> = []
     let rafId: number | null = null
+    let lastFlushAt = 0
+    const MIN_FLUSH_INTERVAL_MS = 800
 
     const flush = () => {
       if (pending.length === 0) return
+      rafId = null
+      const now = Date.now()
+      if (lastFlushAt > 0 && now - lastFlushAt < MIN_FLUSH_INTERVAL_MS) {
+        rafId = requestAnimationFrame(flush)
+        return
+      }
+      lastFlushAt = now
       const batch = pending
       pending = []
-      rafId = null
       patchNodeStatuses(batch)
     }
 
