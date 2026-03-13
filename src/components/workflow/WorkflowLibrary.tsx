@@ -11,12 +11,8 @@ import { useControlStore } from '../../store/control-store'
 import { fetchWorkflowsCombined, fetchWorkflowView } from '../../lib/workflow-library-api'
 import type { XmapWorkflow, WorkflowType } from '../../lib/types'
 
-const VALID_WORKFLOW_TYPES: WorkflowType[] = ['deployment', 'validation', 'self-heal', 'media-generation', 'test']
-
 function toWorkflowType(s: string | undefined): WorkflowType {
-  if (!s) return 'deployment'
-  const t = s.toLowerCase()
-  return VALID_WORKFLOW_TYPES.includes(t as WorkflowType) ? (t as WorkflowType) : 'deployment'
+  return (s?.toLowerCase() || 'workflow') as WorkflowType
 }
 
 export interface WorkflowLibraryProps {
@@ -28,7 +24,7 @@ export interface WorkflowLibraryProps {
 export function WorkflowLibrary({ onRun, onViewLive, onView }: WorkflowLibraryProps) {
   const config = useControlStore((s) => s.config)
   const [search, setSearch] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<WorkflowType | 'all'>('all')
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [apiWorkflows, setApiWorkflows] = useState<XmapWorkflow[]>([])
   const [viewingWorkflowId, setViewingWorkflowId] = useState<string | null>(null)
   const [viewingDefinition, setViewingDefinition] = useState<Record<string, unknown> | null>(null)
@@ -118,7 +114,7 @@ export function WorkflowLibrary({ onRun, onViewLive, onView }: WorkflowLibraryPr
         </button>
         <select
           value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value as WorkflowType | 'all')}
+          onChange={(e) => setCategoryFilter(e.target.value)}
           className="px-3 py-1.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-sm text-[var(--color-text-primary)]"
         >
           <option value="all">All categories</option>

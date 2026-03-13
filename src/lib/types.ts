@@ -46,7 +46,16 @@ export type WorkflowType =
   | 'validation'
   | 'self-heal'
   | 'media-generation'
+  | 'media'
   | 'test'
+  | 'testing'
+  | 'migration'
+  | 'data-pipeline'
+  | 'knowledge'
+  | 'agents'
+  | 'core-pipeline'
+  | 'workflow'
+  | (string & {})
 
 export type GatePhase = 'pre-commit' | 'pre-deploy' | 'post-deploy'
 

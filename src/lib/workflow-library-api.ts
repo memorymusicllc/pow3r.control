@@ -89,6 +89,30 @@ export async function fetchWorkflowListViaMCP(options?: { limit?: number; catego
 }
 
 /** Fetch from GET /api/workflow-library/list (HTTP, not MCP) */
+function inferCategory(w: Record<string, unknown>): string {
+  const meta = (w.metadata ?? {}) as Record<string, unknown>
+  if (meta.category) return String(meta.category)
+  if (w.type) return String(w.type)
+
+  const tags = Array.isArray(meta.tags) ? meta.tags.map(String) : []
+  if (tags.includes('media-generation') || tags.includes('media')) return 'media'
+  if (tags.includes('testing') || tags.includes('test')) return 'testing'
+  if (tags.includes('deployment') || tags.includes('deploy')) return 'deployment'
+  if (tags.includes('migration')) return 'migration'
+
+  const id = String(w.id ?? w.workflowId ?? '').toLowerCase()
+  if (id.includes('media') || id.includes('voice') || id.includes('audio') || id.includes('video') || id.includes('image')) return 'media'
+  if (id.includes('test') || id.includes('validation') || id.includes('validate')) return 'testing'
+  if (id.includes('deploy') || id.includes('pages-deploy')) return 'deployment'
+  if (id.includes('migrate') || id.includes('migration') || id.includes('upgrade')) return 'migration'
+  if (id.includes('heal') || id.includes('repair') || id.includes('fix')) return 'self-heal'
+  if (id.includes('ingest') || id.includes('sync') || id.includes('bootstrap')) return 'data-pipeline'
+  if (id.includes('kg') || id.includes('pkg') || id.includes('knowledge')) return 'knowledge'
+  if (id.includes('agent') || id.includes('abi') || id.includes('jaime') || id.includes('maxi')) return 'agents'
+
+  return 'workflow'
+}
+
 export async function fetchWorkflowLibraryHTTP(options?: { limit?: number; category?: string }): Promise<WorkflowListResponse> {
   try {
     const params = new URLSearchParams()
@@ -106,7 +130,7 @@ export async function fetchWorkflowLibraryHTTP(options?: { limit?: number; categ
         name: String(w.name ?? w.title ?? w.id ?? ''),
         description: w.description ? String(w.description) : undefined,
         version: w.version ? String(w.version) : undefined,
-        workflow_type: w.type ? String(w.type) : (w.metadata as Record<string, unknown>)?.category ? String((w.metadata as Record<string, unknown>).category) : undefined,
+        workflow_type: inferCategory(w),
         tags: Array.isArray((w.metadata as Record<string, unknown>)?.tags) ? ((w.metadata as Record<string, unknown>).tags as string[]).map(String) : undefined,
         lastRun: w.lastRun ?? null,
       })),
