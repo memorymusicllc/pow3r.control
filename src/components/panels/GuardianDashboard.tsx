@@ -51,7 +51,10 @@ type GateStatus = 'pass' | 'fail' | 'pending'
 export function GuardianDashboard() {
   const showGuardianDashboard = useControlStore((s) => s.showGuardianDashboard)
   const toggleGuardianDashboard = useControlStore((s) => s.toggleGuardianDashboard)
-  const { gates: apiGates, summary, startPolling, stopPolling } = useGuardianStore()
+  const apiGates = useGuardianStore((s) => s.gates)
+  const summary = useGuardianStore((s) => s.summary)
+  const startPolling = useGuardianStore((s) => s.startPolling)
+  const stopPolling = useGuardianStore((s) => s.stopPolling)
 
   useEffect(() => {
     if (showGuardianDashboard) { startPolling() }

@@ -10,7 +10,8 @@ import { useEffect } from 'react'
 import { useWorkflowExecutionStore } from '../../store/workflow-execution-store'
 
 export function DeploymentFeedWidget() {
-  const { recentExecutions, fetchRecentExecutions } = useWorkflowExecutionStore()
+  const recentExecutions = useWorkflowExecutionStore((s) => s.recentExecutions)
+  const fetchRecentExecutions = useWorkflowExecutionStore((s) => s.fetchRecentExecutions)
 
   useEffect(() => { fetchRecentExecutions() }, [fetchRecentExecutions])
 

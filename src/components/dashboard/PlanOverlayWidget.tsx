@@ -10,7 +10,12 @@ import { useEffect } from 'react'
 import { usePlanStore } from '../../store/plan-store'
 
 export function PlanOverlayWidget() {
-  const { plans, inProgress, incompletePlans, totalPlans, loading, fetchPlans } = usePlanStore()
+  const plans = usePlanStore((s) => s.plans)
+  const inProgress = usePlanStore((s) => s.inProgress)
+  const incompletePlans = usePlanStore((s) => s.incompletePlans)
+  const totalPlans = usePlanStore((s) => s.totalPlans)
+  const loading = usePlanStore((s) => s.loading)
+  const fetchPlans = usePlanStore((s) => s.fetchPlans)
 
   useEffect(() => { fetchPlans() }, [fetchPlans])
 

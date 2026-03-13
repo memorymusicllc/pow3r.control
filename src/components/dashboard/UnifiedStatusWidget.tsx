@@ -18,9 +18,14 @@ export function UnifiedStatusWidget() {
   const xfilesCases = useXSystemStore((s) => s.xfilesCases)
   const isConnected = useXSystemStore((s) => s.isConnected)
   const eventCount = useXSystemStore((s) => s.eventCount)
-  const { recentExecutions, fetchRecentExecutions } = useWorkflowExecutionStore()
-  const { summary: guardianSummary, fetchGates } = useGuardianStore()
-  const { plans, inProgress, incompletePlans, fetchPlans } = usePlanStore()
+  const recentExecutions = useWorkflowExecutionStore((s) => s.recentExecutions)
+  const fetchRecentExecutions = useWorkflowExecutionStore((s) => s.fetchRecentExecutions)
+  const guardianSummary = useGuardianStore((s) => s.summary)
+  const fetchGates = useGuardianStore((s) => s.fetchGates)
+  const plans = usePlanStore((s) => s.plans)
+  const inProgress = usePlanStore((s) => s.inProgress)
+  const incompletePlans = usePlanStore((s) => s.incompletePlans)
+  const fetchPlans = usePlanStore((s) => s.fetchPlans)
 
   useEffect(() => {
     fetchPlans()

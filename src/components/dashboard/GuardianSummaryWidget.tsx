@@ -13,7 +13,9 @@ import { useGuardianStore } from '../../store/guardian-store'
 export function GuardianSummaryWidget() {
   const toggleGuardianDashboard = useControlStore((s) => s.toggleGuardianDashboard)
   const setViewMode = useControlStore((s) => s.setViewMode)
-  const { gates, summary, fetchGates } = useGuardianStore()
+  const gates = useGuardianStore((s) => s.gates)
+  const summary = useGuardianStore((s) => s.summary)
+  const fetchGates = useGuardianStore((s) => s.fetchGates)
 
   useEffect(() => { fetchGates() }, [fetchGates])
 

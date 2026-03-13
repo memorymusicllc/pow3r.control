@@ -27,7 +27,15 @@ function StoreCard({ item }: { item: StoreItem & { id?: string; type?: string; d
 }
 
 export function DataKnowledgeView() {
-  const { kvStores, d1Databases, r2Buckets, vectorizeIndexes, knowledgeBases, summary, loading, error, fetchInventory } = useDataInventoryStore()
+  const kvStores = useDataInventoryStore((s) => s.kvStores)
+  const d1Databases = useDataInventoryStore((s) => s.d1Databases)
+  const r2Buckets = useDataInventoryStore((s) => s.r2Buckets)
+  const vectorizeIndexes = useDataInventoryStore((s) => s.vectorizeIndexes)
+  const knowledgeBases = useDataInventoryStore((s) => s.knowledgeBases)
+  const summary = useDataInventoryStore((s) => s.summary)
+  const loading = useDataInventoryStore((s) => s.loading)
+  const error = useDataInventoryStore((s) => s.error)
+  const fetchInventory = useDataInventoryStore((s) => s.fetchInventory)
 
   useEffect(() => { fetchInventory() }, [fetchInventory])
 

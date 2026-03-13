@@ -9,7 +9,10 @@ import { useState, useEffect } from 'react'
 import { useAgentStore } from '../../store/agent-store'
 
 export function AgentManagement() {
-  const { agents, loading, error, fetchAgents } = useAgentStore()
+  const agents = useAgentStore((s) => s.agents)
+  const loading = useAgentStore((s) => s.loading)
+  const error = useAgentStore((s) => s.error)
+  const fetchAgents = useAgentStore((s) => s.fetchAgents)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [bigFive, setBigFive] = useState({ O: 70, C: 65, E: 50, A: 60, N: 30 })
 
