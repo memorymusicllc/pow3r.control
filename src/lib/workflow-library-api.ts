@@ -88,8 +88,40 @@ export async function fetchWorkflowListViaMCP(options?: { limit?: number; catego
   }
 }
 
-/** Fetch workflows: MCP first, fallback to GET /api/workflow/list */
+/** Fetch from GET /api/workflow-library/list (HTTP, not MCP) */
+export async function fetchWorkflowLibraryHTTP(options?: { limit?: number; category?: string }): Promise<WorkflowListResponse> {
+  try {
+    const params = new URLSearchParams()
+    if (options?.limit) params.set('limit', String(options.limit))
+    if (options?.category) params.set('category', options.category)
+    const res = await fetch(`${API_BASE}/api/workflow-library/list?${params}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    const data = json.data ?? json
+    const workflows = Array.isArray(data.workflows) ? data.workflows : []
+    return {
+      workflows: workflows.map((w: Record<string, unknown>) => ({
+        id: String(w.id ?? w.workflowId ?? ''),
+        workflowId: String(w.workflowId ?? w.id ?? ''),
+        name: String(w.name ?? w.title ?? w.id ?? ''),
+        description: w.description ? String(w.description) : undefined,
+        version: w.version ? String(w.version) : undefined,
+        workflow_type: w.type ? String(w.type) : (w.metadata as Record<string, unknown>)?.category ? String((w.metadata as Record<string, unknown>).category) : undefined,
+        tags: Array.isArray((w.metadata as Record<string, unknown>)?.tags) ? ((w.metadata as Record<string, unknown>).tags as string[]).map(String) : undefined,
+        lastRun: w.lastRun ?? null,
+      })),
+      count: data.count ?? workflows.length,
+    }
+  } catch (err) {
+    console.warn('[workflow-library-api] fetchWorkflowLibraryHTTP failed:', err)
+    return { workflows: [], count: 0 }
+  }
+}
+
+/** Fetch workflows: HTTP library first, then MCP, then legacy /api/workflow/list */
 export async function fetchWorkflowsCombined(): Promise<WorkflowListResponse> {
+  const http = await fetchWorkflowLibraryHTTP({ limit: 200 })
+  if (http.workflows.length > 0) return http
   const mcp = await fetchWorkflowListViaMCP({ limit: 200 })
   if (mcp.workflows.length > 0) return mcp
   return fetchWorkflowList()
