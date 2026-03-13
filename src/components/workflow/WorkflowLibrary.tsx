@@ -99,7 +99,7 @@ export function WorkflowLibrary({ onRun, onViewLive, onView }: WorkflowLibraryPr
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="px-5 py-4 space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <input
           type="search"
@@ -196,7 +196,7 @@ function WorkflowCard({
   onView: () => void
 }) {
   return (
-    <div className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-cyan)] transition-colors">
+    <div className="px-4 py-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:border-[var(--color-cyan)] transition-colors">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <code className="font-mono text-[11px] text-[var(--color-cyan)] truncate block">

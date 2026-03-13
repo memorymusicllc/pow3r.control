@@ -18,7 +18,7 @@ export function XFilesSummaryWidget() {
   const resolved = cases.filter((c) => c.status === 'resolved')
 
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4 w-full max-w-[520px]">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-5 py-4 w-full max-w-[520px]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           X-Files Cases
@@ -68,7 +68,7 @@ export function XFilesSummaryWidget() {
 
 function StatusCard({ label, count, color }: { label: string; count: number; color: string }) {
   return (
-    <div className="bg-[var(--color-bg-panel)] rounded p-2 text-center">
+    <div className="bg-[var(--color-bg-panel)] rounded px-3 py-2 text-center">
       <div className="font-mono text-xl font-bold" style={{ color }}>{count}</div>
       <div className="font-mono text-[8px] text-[var(--color-text-muted)]">{label}</div>
     </div>

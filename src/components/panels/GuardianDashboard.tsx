@@ -2,19 +2,18 @@
  * pow3r.control - Guardian Dashboard Panel
  *
  * Purpose:
- * - Shows all Guardian gates with status (pass/fail/pending)
- * - Evaluation policy icons (automated/manual/mixed)
- * - Required evidence artifact slots
- * - Gate phase grouping (pre-commit, pre-deploy, post-deploy)
+ * - Shows all Guardian gates with real status from /api/guardian/status
+ * - Grouped by category
+ * - Live-updating via guardian-store polling
  *
  * Agent Instructions:
- * - Gate data comes from XMAP v7 `guardian[]` array
- * - Status is computed (simulated for now; will connect to live API)
- * - Phase grouping helps the CTO understand enforcement points
+ * - Gate data comes from useGuardianStore (real API)
+ * - XMAP guardian array used only as fallback structure
  */
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useControlStore } from '../../store/control-store'
-import type { GuardianGate, GatePhase } from '../../lib/types'
+import { useGuardianStore } from '../../store/guardian-store'
+import type { GatePhase } from '../../lib/types'
 
 const PHASE_ORDER: GatePhase[] = ['pre-commit', 'pre-deploy', 'post-deploy']
 const PHASE_LABELS: Record<GatePhase, string> = {
@@ -29,37 +28,53 @@ const PHASE_COLORS: Record<GatePhase, string> = {
   'post-deploy': 'var(--color-success)',
 }
 
-type GateStatus = 'pass' | 'fail' | 'pending'
-
-function simulateGateStatus(gate: GuardianGate): GateStatus {
-  if (gate.gate_id === 'documentationGate') return 'pending'
-  if (gate.gate_id === 'behavioralTestRequiredGate') return 'pending'
-  return 'pass'
+const CATEGORY_TO_PHASE: Record<string, GatePhase> = {
+  'pre-deploy': 'pre-deploy',
+  'deployment': 'pre-deploy',
+  'testing': 'pre-commit',
+  'evidence': 'pre-deploy',
+  'planning': 'pre-commit',
+  'observability': 'pre-deploy',
+  'documentation': 'pre-commit',
+  'configuration': 'pre-deploy',
+  'monitoring': 'post-deploy',
+  'intelligence': 'post-deploy',
+  'verification': 'post-deploy',
+  'reliability': 'post-deploy',
+  'lifecycle': 'post-deploy',
+  'compliance': 'pre-commit',
+  'post-deploy': 'post-deploy',
 }
 
+type GateStatus = 'pass' | 'fail' | 'pending'
+
 export function GuardianDashboard() {
-  const config = useControlStore((s) => s.config)
   const showGuardianDashboard = useControlStore((s) => s.showGuardianDashboard)
   const toggleGuardianDashboard = useControlStore((s) => s.toggleGuardianDashboard)
+  const { gates: apiGates, summary, startPolling, stopPolling } = useGuardianStore()
 
-  const gates = config?.guardian ?? []
+  useEffect(() => {
+    if (showGuardianDashboard) { startPolling() }
+    return () => stopPolling()
+  }, [showGuardianDashboard, startPolling, stopPolling])
 
   const grouped = useMemo(() => {
-    const groups: Record<GatePhase, Array<GuardianGate & { status: GateStatus }>> = {
+    const groups: Record<GatePhase, Array<{ gate_id: string; name: string; status: GateStatus; category: string; errors: unknown[]; warnings: unknown[] }>> = {
       'pre-commit': [],
       'pre-deploy': [],
       'post-deploy': [],
     }
-    gates.forEach((g) => {
-      const status = simulateGateStatus(g)
-      groups[g.type].push({ ...g, status })
-    })
+    for (const g of apiGates) {
+      const phase = CATEGORY_TO_PHASE[g.category] || 'post-deploy'
+      groups[phase].push({ gate_id: g.gateId, name: g.name, status: g.status, category: g.category, errors: g.errors, warnings: g.warnings })
+    }
     return groups
-  }, [gates])
+  }, [apiGates])
 
-  const totalPass = gates.filter((g) => simulateGateStatus(g) === 'pass').length
-  const totalFail = gates.filter((g) => simulateGateStatus(g) === 'fail').length
-  const totalPending = gates.filter((g) => simulateGateStatus(g) === 'pending').length
+  const totalPass = summary.passed
+  const totalFail = summary.failed
+  const totalPending = summary.pending
+  const totalGates = summary.total || apiGates.length
 
   if (!showGuardianDashboard) return null
 
@@ -84,21 +99,21 @@ export function GuardianDashboard() {
           <span className="text-[var(--color-success)]">{totalPass} pass</span>
           {totalFail > 0 && <span className="text-[var(--color-error)]">{totalFail} fail</span>}
           {totalPending > 0 && <span className="text-[var(--color-amber)]">{totalPending} pending</span>}
-          <span className="text-[var(--color-text-muted)] ml-auto">{gates.length} total</span>
+          <span className="text-[var(--color-text-muted)] ml-auto">{totalGates} total</span>
         </div>
         {/* Progress bar */}
         <div className="mt-1.5 h-1.5 bg-[var(--color-bg-card)] rounded-full overflow-hidden flex">
           <div
             className="h-full bg-[var(--color-success)]"
-            style={{ width: `${(totalPass / Math.max(gates.length, 1)) * 100}%` }}
+            style={{ width: `${(totalPass / Math.max(totalGates, 1)) * 100}%` }}
           />
           <div
             className="h-full bg-[var(--color-error)]"
-            style={{ width: `${(totalFail / Math.max(gates.length, 1)) * 100}%` }}
+            style={{ width: `${(totalFail / Math.max(totalGates, 1)) * 100}%` }}
           />
           <div
             className="h-full bg-[var(--color-amber)]"
-            style={{ width: `${(totalPending / Math.max(gates.length, 1)) * 100}%` }}
+            style={{ width: `${(totalPending / Math.max(totalGates, 1)) * 100}%` }}
           />
         </div>
       </div>
@@ -118,7 +133,7 @@ export function GuardianDashboard() {
               </h4>
               <div className="space-y-1.5">
                 {phaseGates.map((gate) => (
-                  <GateRow key={gate.gate_id} gate={gate} status={gate.status} />
+                  <GateRowLive key={gate.gate_id} gate={gate} />
                 ))}
               </div>
             </div>
@@ -129,22 +144,17 @@ export function GuardianDashboard() {
   )
 }
 
-function GateRow({ gate, status }: { gate: GuardianGate; status: GateStatus }) {
-  const statusColor = status === 'pass'
+function GateRowLive({ gate }: { gate: { gate_id: string; name: string; status: GateStatus; category: string; errors: unknown[]; warnings: unknown[] } }) {
+  const statusColor = gate.status === 'pass'
     ? 'var(--color-success)'
-    : status === 'fail'
+    : gate.status === 'fail'
       ? 'var(--color-error)'
       : 'var(--color-amber)'
 
-  const statusIcon = status === 'pass' ? 'P' : status === 'fail' ? 'X' : '?'
-
-  const policyIcon = gate.evaluation_policy === 'automated' ? 'A'
-    : gate.evaluation_policy === 'manual' ? 'M'
-    : 'H'
+  const statusIcon = gate.status === 'pass' ? 'P' : gate.status === 'fail' ? 'X' : '?'
 
   return (
     <div className="flex items-start gap-2 p-1.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)]">
-      {/* Status hex */}
       <div className="shrink-0 mt-0.5">
         <HexIcon size={20} color={statusColor} label={statusIcon} />
       </div>
@@ -152,46 +162,18 @@ function GateRow({ gate, status }: { gate: GuardianGate; status: GateStatus }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1">
           <span className="font-mono text-[10px] text-[var(--color-text-primary)] truncate">
-            {formatGateName(gate.gate_id)}
+            {gate.name}
           </span>
-          <span
-            className="shrink-0 font-mono text-[8px] px-1 rounded"
-            style={{
-              color: 'var(--color-bg-deep)',
-              backgroundColor:
-                gate.evaluation_policy === 'automated' ? 'var(--color-cyan)' :
-                gate.evaluation_policy === 'manual' ? 'var(--color-magenta)' :
-                'var(--color-purple)',
-            }}
-          >
-            {policyIcon}
+          <span className="shrink-0 font-mono text-[8px] px-1 rounded" style={{ color: 'var(--color-bg-deep)', backgroundColor: 'var(--color-cyan)' }}>
+            {gate.category}
           </span>
         </div>
 
-        {/* Evidence slots */}
-        {gate.required_evidence && gate.required_evidence.length > 0 && (
-          <div className="flex gap-1 mt-1">
-            {gate.required_evidence.map((ev) => (
-              <span
-                key={ev}
-                className="px-1 py-0.5 text-[8px] font-mono rounded border"
-                style={{
-                  borderColor: status === 'pass' ? 'var(--color-success)' : 'var(--color-border)',
-                  color: status === 'pass' ? 'var(--color-success)' : 'var(--color-text-muted)',
-                }}
-              >
-                {ev}
-              </span>
-            ))}
+        {gate.errors.length > 0 && (
+          <div className="mt-0.5 font-mono text-[8px] text-[var(--color-error)]">
+            {(gate.errors[0] as { message?: string })?.message || 'Error'}
           </div>
         )}
-
-        {/* Action on fail */}
-        <div className="mt-0.5 font-mono text-[8px] text-[var(--color-text-muted)]">
-          on fail: <span style={{ color: gate.action_on_fail === 'block' ? 'var(--color-error)' : 'var(--color-amber)' }}>
-            {gate.action_on_fail}
-          </span>
-        </div>
       </div>
     </div>
   )
@@ -230,9 +212,3 @@ function HexIcon({ size, color, label }: { size: number; color: string; label?: 
   )
 }
 
-function formatGateName(gateId: string): string {
-  return gateId
-    .replace(/Gate$/, '')
-    .replace(/([A-Z])/g, ' $1')
-    .trim()
-}

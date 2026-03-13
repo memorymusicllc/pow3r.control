@@ -17,7 +17,7 @@ export function ActiveWorkflowsWidget() {
   const workflows = config.workflows
 
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4 w-full max-w-[520px]">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-5 py-4 w-full max-w-[520px]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           Workflows
@@ -33,7 +33,7 @@ export function ActiveWorkflowsWidget() {
               expandWorkflow(wf.workflow_id)
               setViewMode('2d')
             }}
-            className="w-full text-left p-2.5 rounded bg-[var(--color-bg-panel)] border border-[var(--color-border)] hover:border-[var(--color-cyan)] transition-colors"
+            className="w-full text-left px-4 py-3 rounded bg-[var(--color-bg-panel)] border border-[var(--color-border)] hover:border-[var(--color-cyan)] transition-colors"
           >
             <div className="flex items-center justify-between">
               <code className="font-mono text-[10px] text-[var(--color-text-primary)]">{wf.workflow_id}</code>

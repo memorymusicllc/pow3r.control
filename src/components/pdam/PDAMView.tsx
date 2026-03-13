@@ -33,7 +33,7 @@ export function PDAMView() {
   }, [])
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="px-5 py-4 space-y-4">
       <h2 className="font-mono text-sm font-semibold text-[var(--color-cyan)]">PDAM - Projects & Assets</h2>
       {loading && <p className="font-mono text-[10px] text-[var(--color-text-muted)]">Loading...</p>}
       {error && <p className="font-mono text-[10px] text-[var(--color-error)]">{error}</p>}
@@ -47,7 +47,7 @@ export function PDAMView() {
           {projects.map((p) => (
             <div
               key={p.id}
-              className="p-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] font-mono text-[10px]"
+              className="px-4 py-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] font-mono text-[10px]"
             >
               <span className="text-[var(--color-cyan)]">{p.name ?? p.id}</span>
             </div>

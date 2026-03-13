@@ -2,19 +2,24 @@
  * pow3r.control - Config Selector
  *
  * Purpose:
- * - Dropdown to switch between available XMAP configs
- * - Loads from local sample data or remote API
+ * - Dropdown to switch between ALL available XMAP configs (~45 from API)
+ * - Fetches full list from /api/xmap/configs on mount
  * - Shows loading state during config fetch
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useControlStore } from '../../store/control-store'
-import { AVAILABLE_CONFIGS, loadConfigByName } from '../../lib/config-loader'
+import { fetchAvailableConfigs, loadConfigByName, type ConfigOption } from '../../lib/config-loader'
 
 export function ConfigSelector() {
   const loadConfig = useControlStore((s) => s.loadConfig)
   const config = useControlStore((s) => s.config)
   const [isLoading, setIsLoading] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
+  const [configs, setConfigs] = useState<ConfigOption[]>([])
+
+  useEffect(() => {
+    fetchAvailableConfigs().then(setConfigs)
+  }, [])
 
   const currentId = config?.metadata.id ?? 'pow3r-platform'
 
@@ -47,7 +52,10 @@ export function ConfigSelector() {
           </svg>
         )}
         <span className="font-mono text-[9px] text-[var(--color-text-secondary)]">
-          {AVAILABLE_CONFIGS.find((c) => c.id === currentId)?.name ?? currentId}
+          {configs.find((c) => c.id === currentId)?.name ?? currentId}
+        </span>
+        <span className="font-mono text-[8px] text-[var(--color-text-muted)] ml-1">
+          ({configs.length})
         </span>
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
           <path d="M6 9l6 6 6-6" />
@@ -55,8 +63,8 @@ export function ConfigSelector() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-1 left-0 w-56 bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-lg z-30 overflow-hidden">
-          {AVAILABLE_CONFIGS.map((opt) => (
+        <div className="absolute top-full mt-1 left-0 w-64 max-h-80 overflow-y-auto bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-lg z-30">
+          {configs.map((opt) => (
             <button
               key={opt.id}
               onClick={() => handleSelect(opt.id)}
@@ -68,7 +76,7 @@ export function ConfigSelector() {
                 className="w-1.5 h-1.5 rounded-full shrink-0"
                 style={{ backgroundColor: opt.source === 'remote' ? 'var(--color-purple)' : 'var(--color-success)' }}
               />
-              <span className="flex-1">{opt.name}</span>
+              <span className="flex-1 truncate">{opt.name}</span>
               {opt.id === currentId && (
                 <span className="text-[8px] text-[var(--color-text-muted)]">active</span>
               )}

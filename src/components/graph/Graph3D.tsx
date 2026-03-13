@@ -334,7 +334,7 @@ export function Graph3D() {
   return (
     <div className="w-full h-full relative">
       <Canvas
-        camera={{ position: [80, 60, 80], fov: 45, near: 0.1, far: 2000 }}
+        camera={{ position: [150, 120, 150], fov: 45, near: 0.1, far: 5000 }}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onPointerMissed={() => {
           selectNode(null)

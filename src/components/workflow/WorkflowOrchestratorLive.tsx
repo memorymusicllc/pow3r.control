@@ -20,10 +20,7 @@ interface WorkflowOrchestratorLiveProps {
 }
 
 function inferMcpRequest(step: WorkflowStep): { name: string; server?: string; arguments?: Record<string, unknown> } {
-  if (step.step_id.includes('pkg')) return { name: 'pkg_hybrid', server: 'pkg', arguments: { query: '...', topK: 10 } }
-  if (step.step_id.includes('guardian')) return { name: 'guardian_check_gates', server: 'guardian', arguments: {} }
-  if (step.step_id.includes('credential')) return { name: 'pass_preflight_all', server: 'pow3r', arguments: { requiredProviders: ['gemini'] } }
-  return { name: step.action, server: step.node, arguments: {} }
+  return { name: step.action || step.step_id, server: step.node || 'orchestrator', arguments: {} }
 }
 
 function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow | null {
@@ -44,10 +41,13 @@ function defToWorkflow(def: Record<string, unknown>, id: string): XmapWorkflow |
 export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrchestratorLiveProps) {
   const config = useControlStore((s) => s.config)
   const executions = useWorkflowExecutionStore((s) => s.executions[workflowId] ?? [])
-  const startSimulatedRun = useWorkflowExecutionStore((s) => s.startSimulatedRun)
-  const stopSimulatedRun = useWorkflowExecutionStore((s) => s.stopSimulatedRun)
+  const runWorkflow = useWorkflowExecutionStore((s) => s.runWorkflow)
+  const stopRun = useWorkflowExecutionStore((s) => s.stopRun)
+  const runLoading = useWorkflowExecutionStore((s) => s.runLoading)
+  const runError = useWorkflowExecutionStore((s) => s.runError)
+  const activeExecutionId = useWorkflowExecutionStore((s) => s.activeExecutionId)
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
-  const [isRunning, setIsRunning] = useState(false)
+  const isRunning = runLoading || !!activeExecutionId
   const [fetchedWorkflow, setFetchedWorkflow] = useState<XmapWorkflow | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
@@ -96,20 +96,14 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
     .map((gId) => (config?.guardian ?? []).find((g) => g.gate_id === gId))
     .filter(Boolean) as GuardianGate[]
 
-  const handleStartRun = () => {
+  const handleStartRun = async () => {
     if (stepIds.length === 0) return
-    setIsRunning(true)
-    try {
-      startSimulatedRun(workflowId, stepIds)
-    } catch {
-      setIsRunning(false)
-      setFetchError('Failed to start workflow run')
-    }
+    const execId = await runWorkflow(workflowId)
+    if (!execId) setFetchError(runError || 'Failed to start workflow run')
   }
 
   const handleStopRun = () => {
-    setIsRunning(false)
-    stopSimulatedRun(workflowId)
+    stopRun()
   }
 
   return (
@@ -126,7 +120,7 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
               onClick={handleStartRun}
               disabled={stepIds.length === 0}
               className="font-mono text-[10px] px-3 py-1 rounded bg-[var(--color-cyan)]20 text-[var(--color-cyan)] hover:bg-[var(--color-cyan)]30 disabled:opacity-40 disabled:cursor-not-allowed"
-              title={stepIds.length === 0 ? 'No steps defined' : 'Start simulated run'}
+              title={stepIds.length === 0 ? 'No steps defined' : 'Execute via Pow3r Orchestrator'}
             >
               Start Run
             </button>
@@ -251,10 +245,8 @@ export function WorkflowOrchestratorLive({ workflowId, onClose }: WorkflowOrches
             </div>
           ) : (
             <div className="space-y-1">
-              <p className="text-[10px] text-[var(--color-text-muted)]">Click Start Run to simulate execution.</p>
-              <p className="text-[9px] text-[var(--color-text-muted)]">
-                Simulated run for demo. Connect to Pow3r Orchestrator for live execution.
-              </p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">Click Start Run to execute via Pow3r Orchestrator.</p>
+              {runError && <p className="text-[9px] text-[var(--color-error)]">{runError}</p>}
             </div>
           )}
           {workflow.evidence_policy && (

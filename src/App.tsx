@@ -99,8 +99,7 @@ export default function App() {
   const xFilesCases = useXSystemStore((s) => s.xfilesCases)
   const addEvent = useXSystemStore((s) => s.addEvent)
   const setConnected = useXSystemStore((s) => s.setConnected)
-  const startSimulation = useXSystemStore((s) => s.startSimulation)
-  const stopSimulation = useXSystemStore((s) => s.stopSimulation)
+  const fetchXFilesCases = useXSystemStore((s) => s.fetchXFilesCases)
   const updateStepFromEvent = useWorkflowExecutionStore((s) => s.updateStepFromEvent)
 
   const viewPanelItems = [
@@ -167,14 +166,14 @@ export default function App() {
       }
     }
     load()
-    startSimulation()
     return () => {
       cancelled = true
-      stopSimulation()
     }
-  }, [loadConfig, startSimulation, stopSimulation])
+  }, [loadConfig])
 
   useEffect(() => {
+    fetchXFilesCases()
+
     const dispose = connectXSystemSSE({
       onEvent: (ev) => {
         addEvent(ev)
@@ -193,7 +192,7 @@ export default function App() {
       onDisconnect: () => setConnected(false),
     })
     return dispose
-  }, [addEvent, setConnected, updateStepFromEvent])
+  }, [addEvent, setConnected, updateStepFromEvent, fetchXFilesCases])
 
   if (!config) {
     return (
@@ -225,11 +224,17 @@ export default function App() {
       {/* Top bar - responsive: compact on mobile, full on desktop */}
       <header className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] z-30 shrink-0 gap-2">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
-          <h1 className="font-mono text-sm font-bold tracking-tight whitespace-nowrap">
-            <span className="text-[var(--color-cyan)]">pow3r</span>
-            <span className="text-[var(--color-text-muted)]">.</span>
-            <span className="text-[var(--color-text-primary)]">control</span>
-          </h1>
+          {/* Lightning bolt icon only with gold gradient */}
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="shrink-0">
+            <defs>
+              <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFD700" />
+                <stop offset="50%" stopColor="#FFA500" />
+                <stop offset="100%" stopColor="#FF8C00" />
+              </linearGradient>
+            </defs>
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="url(#gold-gradient)" />
+          </svg>
           {layout.breakpoint !== 'compact' && config.metadata && (
             <>
               <div className="h-4 w-px bg-[var(--color-border)]" />
@@ -439,8 +444,8 @@ export default function App() {
         </main>
       </div>
 
-      {/* Bottom nav - portrait only (M3: 80dp height, 48dp touch targets, labels below icons) */}
-      <footer className="nav-footer flex items-end px-2 bg-[var(--color-bg-surface)] border-t border-[var(--color-border)] z-30 shrink-0" style={{ minHeight: 72 }}>
+      {/* Bottom nav - portrait only (Pow3r: 56dp height, 32dp touch targets, labels below icons) */}
+      <footer className="nav-footer flex items-center justify-between px-3 bg-[var(--color-bg-surface)] border-t border-[var(--color-border)] z-30 shrink-0" style={{ height: 56 }}>
         <ViewSwitcher />
         <ViewPanelMenu placement="top" panels={viewPanelItems} />
       </footer>

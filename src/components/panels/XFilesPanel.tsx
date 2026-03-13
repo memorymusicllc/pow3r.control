@@ -22,7 +22,7 @@ export function XFilesPanel() {
 
   return (
     <div className="absolute top-0 left-0 w-72 h-full bg-[var(--color-bg-panel)] border-r border-[var(--color-border)] overflow-y-auto z-20">
-      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] p-3 z-10">
+      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] px-4 py-3 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[var(--color-error)]">!</span>
@@ -41,7 +41,7 @@ export function XFilesPanel() {
         </div>
       </div>
 
-      <div className="p-3 space-y-2">
+      <div className="px-4 py-3 space-y-2">
         {openCases.length === 0 ? (
           <div className="text-center py-8">
             <span className="font-mono text-[10px] text-[var(--color-text-muted)]">

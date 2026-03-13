@@ -18,7 +18,7 @@ export function MapKey() {
   if (!showMapKey) return null
 
   return (
-    <div className="absolute bottom-14 right-3 bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg p-2.5 z-10 max-w-48 select-none">
+    <div className="absolute bottom-14 right-4 bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg px-4 py-3 z-10 max-w-52 select-none">
       <button
         className="flex items-center justify-between w-full text-[10px] font-mono text-[var(--color-text-muted)] uppercase tracking-wider"
         onClick={() => setExpanded(!expanded)}

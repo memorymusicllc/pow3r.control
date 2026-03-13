@@ -58,7 +58,7 @@ export function useForceLayout3D(
       simRef.current.stop()
     }
 
-    const spread = Math.max(80, nodes.length * 10)
+    const spread = Math.min(80, Math.max(30, nodes.length * 0.5))
     const prev = positionsRef.current
 
     const simNodes: SimNode[] = nodes.map((n) => {
@@ -88,14 +88,14 @@ export function useForceLayout3D(
         'link',
         forceLink(simLinks)
           .id((d: SimNode) => d.id)
-          .distance(50)
-          .strength(0.4)
+          .distance(25)
+          .strength(0.6)
       )
-      .force('charge', forceManyBody().strength(-250))
-      .force('center', forceCenter(0, 0, 0))
-      .force('collide', forceCollide(18).iterations(2))
-      .alphaDecay(0.03)
-      .velocityDecay(0.35)
+      .force('charge', forceManyBody().strength(-80).distanceMax(150))
+      .force('center', forceCenter(0, 0, 0).strength(0.1))
+      .force('collide', forceCollide(8).iterations(2))
+      .alphaDecay(0.02)
+      .velocityDecay(0.4)
 
     simRef.current = sim
 

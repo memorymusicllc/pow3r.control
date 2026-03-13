@@ -24,16 +24,7 @@ interface ConfigLeafViewerProps {
   onClose?: () => void
 }
 
-const DEMO_LEAVES: ConfigLeaf[] = [
-  { path: 'writer.generation', key: 'generateVoice', value: true, type: 'boolean', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.generation', key: 'generateMusic', value: true, type: 'boolean', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.generation', key: 'generateVideo', value: false, type: 'boolean', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.generation', key: 'enableTelemetry', value: true, type: 'boolean', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.model', key: 'provider', value: 'gemini', type: 'string', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.model', key: 'model', value: 'gemini-2.5-flash', type: 'string', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.model', key: 'maxRetries', value: 3, type: 'number', source: 'configs/writer.pow3r.json' },
-  { path: 'writer.model', key: 'timeout', value: 30000, type: 'number', source: 'configs/writer.pow3r.json' },
-]
+// No demo leaves - derive from selected node or provided leaves only
 
 function getLeavesForNode(nodeId: string, config: XmapV7Config | null): ConfigLeaf[] {
   if (!config) return []
@@ -71,7 +62,7 @@ export function ConfigLeafViewer({ leaves: providedLeaves, selectedNodeId, confi
       const nodeLeaves = getLeavesForNode(selectedNodeId, config)
       if (nodeLeaves.length > 0) return nodeLeaves
     }
-    return providedLeaves ?? DEMO_LEAVES
+    return providedLeaves ?? []
   }, [selectedNodeId, config, providedLeaves])
   const [filter, setFilter] = useState('')
 
@@ -85,7 +76,7 @@ export function ConfigLeafViewer({ leaves: providedLeaves, selectedNodeId, confi
 
   return (
     <div className="absolute bottom-4 right-4 w-96 max-w-[90vw] max-h-80 bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl overflow-hidden z-30">
-      <div className="p-2 border-b border-[var(--color-border)] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
         <h4 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase">
           Config Leaf Viewer{selectedNodeId ? ` (${selectedNodeId})` : ''}
         </h4>
@@ -95,20 +86,20 @@ export function ConfigLeafViewer({ leaves: providedLeaves, selectedNodeId, confi
           </button>
         )}
       </div>
-      <div className="p-2 border-b border-[var(--color-border)]">
+      <div className="px-4 py-2 border-b border-[var(--color-border)]">
         <input
           type="search"
           placeholder="Filter by key or path..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full px-2 py-1 rounded bg-[var(--color-bg-deep)] border border-[var(--color-border)] font-mono text-[10px]"
+          className="w-full px-3 py-2 rounded bg-[var(--color-bg-deep)] border border-[var(--color-border)] font-mono text-[10px]"
         />
       </div>
-      <div className="overflow-y-auto max-h-48 p-2 space-y-1">
+      <div className="overflow-y-auto max-h-48 px-4 py-3 space-y-1">
         {filtered.map((leaf, i) => (
           <div
             key={`${leaf.path}-${leaf.key}-${i}`}
-            className="flex items-center justify-between gap-2 p-2 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)]"
+            className="flex items-center justify-between gap-2 px-3 py-2 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)]"
           >
             <div className="min-w-0 flex-1">
               <div className="font-mono text-[10px] text-[var(--color-cyan)] truncate">

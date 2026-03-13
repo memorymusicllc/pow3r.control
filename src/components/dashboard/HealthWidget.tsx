@@ -44,14 +44,14 @@ export function HealthWidget() {
   const offset = circumference - (score * circumference)
 
   return (
-    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg p-4 w-full max-w-[520px]">
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-lg px-5 py-4 w-full max-w-[520px]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-mono text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
           System Health
         </h3>
         <button
           onClick={() => setViewMode('dashboard')}
-          className="font-mono text-[9px] text-[var(--color-cyan)] hover:underline min-h-[44px] min-w-[44px]"
+          className="font-mono text-[9px] text-[var(--color-cyan)] hover:underline min-h-[32px] px-2"
           title="View dashboard"
         >
           View details

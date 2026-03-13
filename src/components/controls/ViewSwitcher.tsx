@@ -1,16 +1,12 @@
 /**
- * pow3r.control - View Mode Switcher (M3 Compliant)
+ * pow3r.control - View Mode Switcher (Pow3r Standard)
  *
  * Purpose:
  * - Bottom navigation bar (portrait) / navigation rail (landscape)
- * - M3 specs: 48dp touch targets, 24dp icons, 12px labels below icons
- * - Max 5 visible items in portrait; overflow into "More" menu
+ * - Pow3r specs: 32dp touch targets, 20dp icons, 11px labels below icons
+ * - 2D/3D combined as single toggle button
+ * - Max 4 visible items in portrait; overflow into "More" menu
  * - Active indicator pill
- *
- * Agent Instructions:
- * - Uses M3 bottom nav specs (80dp height, 24dp icons, 12sp labels)
- * - Portrait: show first 4 primary views + "More" overflow
- * - Landscape rail: show all views vertically, scrollable
  */
 import { useState, useRef, useEffect } from 'react'
 import { useControlStore } from '../../store/control-store'
@@ -23,8 +19,6 @@ interface ViewItem {
 }
 
 const PRIMARY_VIEWS: ViewItem[] = [
-  { mode: '2d', label: '2D', icon: 'M4 4h16v16H4z' },
-  { mode: '3d', label: '3D', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
   { mode: 'dashboard', label: 'Dash', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
   { mode: 'library', label: 'Library', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
 ]
@@ -50,7 +44,7 @@ function NavButton({ item, isActive, onClick }: { item: ViewItem; isActive: bool
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-2 rounded-lg transition-colors relative touch-manipulation ${
+      className={`flex flex-col items-center justify-center gap-0.5 min-w-[32px] min-h-[32px] px-2 py-1.5 rounded-md transition-colors relative touch-manipulation ${
         isActive
           ? 'text-[var(--color-cyan)]'
           : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -59,12 +53,50 @@ function NavButton({ item, isActive, onClick }: { item: ViewItem; isActive: bool
       aria-label={item.label}
     >
       {isActive && (
-        <div className="absolute inset-x-2 top-1 h-[32px] rounded-full bg-[var(--color-cyan)]/10" />
+        <div className="absolute inset-x-1 top-0.5 h-[24px] rounded-full bg-[var(--color-cyan)]/10" />
       )}
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="relative z-10 shrink-0">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="relative z-10 shrink-0">
         <path d={item.icon} />
       </svg>
-      <span className="text-[12px] font-mono font-semibold leading-none relative z-10">{item.label}</span>
+      <span className="text-[11px] font-mono font-medium leading-none relative z-10">{item.label}</span>
+    </button>
+  )
+}
+
+function ViewToggle2D3D() {
+  const viewMode = useControlStore((s) => s.viewMode)
+  const setViewMode = useControlStore((s) => s.setViewMode)
+  const is3D = viewMode === '3d'
+  const isActive = viewMode === '2d' || viewMode === '3d'
+
+  const toggle = () => {
+    if (viewMode === '2d') setViewMode('3d')
+    else if (viewMode === '3d') setViewMode('2d')
+    else setViewMode('2d')
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className={`flex flex-col items-center justify-center gap-0.5 min-w-[32px] min-h-[32px] px-2 py-1.5 rounded-md transition-colors relative touch-manipulation ${
+        isActive
+          ? 'text-[var(--color-cyan)]'
+          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
+      }`}
+      title={is3D ? 'Switch to 2D' : 'Switch to 3D'}
+      aria-label={is3D ? '3D view active, click for 2D' : '2D view active, click for 3D'}
+    >
+      {isActive && (
+        <div className="absolute inset-x-1 top-0.5 h-[24px] rounded-full bg-[var(--color-cyan)]/10" />
+      )}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="relative z-10 shrink-0">
+        {is3D ? (
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+        ) : (
+          <path d="M4 4h16v16H4z" />
+        )}
+      </svg>
+      <span className="text-[11px] font-mono font-medium leading-none relative z-10">{is3D ? '3D' : '2D'}</span>
     </button>
   )
 }
@@ -90,7 +122,8 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
 
   if (isVertical) {
     return (
-      <nav className="flex flex-col items-center gap-1 w-full overflow-y-auto py-1">
+      <nav className="flex flex-col items-center gap-0.5 w-full overflow-y-auto py-1">
+        <ViewToggle2D3D />
         {ALL_VIEWS.map((item) => (
           <NavButton
             key={item.mode}
@@ -104,7 +137,11 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
   }
 
   return (
-    <nav className="flex items-end justify-around flex-1 gap-1">
+    <nav className="flex items-center justify-around flex-1 gap-0.5">
+      {/* 2D/3D toggle button */}
+      <ViewToggle2D3D />
+
+      {/* Primary views */}
       {PRIMARY_VIEWS.map((item) => (
         <NavButton
           key={item.mode}
@@ -118,7 +155,7 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
       <div ref={moreRef} className="relative">
         <button
           onClick={() => setMoreOpen((o) => !o)}
-          className={`flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[48px] px-3 py-2 rounded-lg transition-colors touch-manipulation ${
+          className={`flex flex-col items-center justify-center gap-0.5 min-w-[32px] min-h-[32px] px-2 py-1.5 rounded-md transition-colors touch-manipulation ${
             moreOpen || isOverflowActive
               ? 'text-[var(--color-cyan)]'
               : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
@@ -128,19 +165,19 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
           aria-expanded={moreOpen}
         >
           {isOverflowActive && (
-            <div className="absolute inset-x-2 top-1 h-[32px] rounded-full bg-[var(--color-cyan)]/10" />
+            <div className="absolute inset-x-1 top-0.5 h-[24px] rounded-full bg-[var(--color-cyan)]/10" />
           )}
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="relative z-10">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="relative z-10">
             <circle cx="12" cy="5" r="1.5" fill="currentColor" />
             <circle cx="12" cy="12" r="1.5" fill="currentColor" />
             <circle cx="12" cy="19" r="1.5" fill="currentColor" />
           </svg>
-          <span className="text-[12px] font-mono font-semibold leading-none relative z-10">More</span>
+          <span className="text-[11px] font-mono font-medium leading-none relative z-10">More</span>
         </button>
 
         {moreOpen && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[220px] bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl z-50 overflow-hidden">
-            <div className="p-3 space-y-1">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[180px] bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="p-2 space-y-0.5">
               {OVERFLOW_VIEWS.map((item) => (
                 <button
                   key={item.mode}
@@ -148,16 +185,16 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
                     setViewMode(item.mode)
                     setMoreOpen(false)
                   }}
-                  className={`w-full flex items-center gap-3 min-h-[48px] px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`w-full flex items-center gap-2 min-h-[32px] px-2 py-1.5 rounded-md text-left transition-colors ${
                     viewMode === item.mode
                       ? 'bg-[var(--color-cyan)]/10 text-[var(--color-cyan)]'
                       : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card)]'
                   }`}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="shrink-0">
                     <path d={item.icon} />
                   </svg>
-                  <span className="text-[13px] font-mono font-semibold">{item.label}</span>
+                  <span className="text-[12px] font-mono font-medium">{item.label}</span>
                 </button>
               ))}
             </div>

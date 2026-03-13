@@ -45,7 +45,7 @@ export function NodeDetail() {
   return (
     <div className={`absolute top-0 right-0 bg-[var(--color-bg-panel)] border-l border-[var(--color-border)] z-20 flex flex-col ${isCollapsed ? 'w-12 h-auto' : 'w-80 max-w-[90vw] h-full overflow-y-auto'}`}>
       {/* Header */}
-      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] p-3 shrink-0">
+      <div className="sticky top-0 bg-[var(--color-bg-panel)] border-b border-[var(--color-border)] px-4 py-3 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <button
@@ -99,7 +99,7 @@ export function NodeDetail() {
       </div>
 
       {!isCollapsed && (
-        <div className="p-3 space-y-4 flex-1">
+        <div className="px-4 py-3 space-y-4 flex-1">
           {/* Status */}
           <Section title="Status">
             <div className="flex items-center gap-2">

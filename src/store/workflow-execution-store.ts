@@ -2,11 +2,13 @@
  * pow3r.control - Workflow Execution Store
  *
  * Purpose:
- * - Tracks step states for live workflow execution
- * - Integrates with X-System events filtered by workflowId
- * - Supports simulated execution for demo
+ * - Tracks step states for live workflow execution via SSE stream
+ * - Runs workflows through /api/workflow-library/run
+ * - Subscribes to /api/workflow/stream/:executionId for real-time updates
+ * - Loads recent executions from /api/workflow/executions
  */
 import { create } from 'zustand'
+import { api, subscribeSSE } from '../lib/api-client'
 
 export type StepStatus = 'pending' | 'running' | 'success' | 'fail'
 
@@ -20,18 +22,44 @@ export interface StepExecution {
   retryCount?: number
 }
 
-interface WorkflowExecutionState {
-  executions: Record<string, StepExecution[]>
-  focusedWorkflowId: string | null
-  setFocusedWorkflow: (id: string | null) => void
-  updateStepFromEvent: (workflowId: string, stepId: string, status: StepStatus, extra?: Partial<StepExecution>) => void
-  startSimulatedRun: (workflowId: string, stepIds: string[]) => void
-  stopSimulatedRun: (workflowId: string) => void
+export interface WorkflowExecution {
+  executionId: string
+  workflowId: string
+  status: string
+  startedAt?: string
+  completedAt?: string
+  failedAt?: string
+  duration?: number
+  stepsCompleted?: number
+  stepCount?: number
+  error?: string
+  description?: string
 }
 
-export const useWorkflowExecutionStore = create<WorkflowExecutionState>((set) => ({
+interface WorkflowExecutionState {
+  executions: Record<string, StepExecution[]>
+  recentExecutions: WorkflowExecution[]
+  activeExecutionId: string | null
+  focusedWorkflowId: string | null
+  runLoading: boolean
+  runError: string | null
+  _cleanupSSE: (() => void) | null
+
+  setFocusedWorkflow: (id: string | null) => void
+  updateStepFromEvent: (workflowId: string, stepId: string, status: StepStatus, extra?: Partial<StepExecution>) => void
+  runWorkflow: (workflowId: string, input?: Record<string, unknown>) => Promise<string | null>
+  stopRun: () => void
+  fetchRecentExecutions: () => Promise<void>
+}
+
+export const useWorkflowExecutionStore = create<WorkflowExecutionState>((set, get) => ({
   executions: {},
+  recentExecutions: [],
+  activeExecutionId: null,
   focusedWorkflowId: null,
+  runLoading: false,
+  runError: null,
+  _cleanupSSE: null,
 
   setFocusedWorkflow: (id) => set({ focusedWorkflowId: id }),
 
@@ -45,61 +73,62 @@ export const useWorkflowExecutionStore = create<WorkflowExecutionState>((set) =>
       } else {
         next.push({ stepId, status, ...extra })
       }
-      return {
-        executions: { ...state.executions, [workflowId]: next },
-      }
+      return { executions: { ...state.executions, [workflowId]: next } }
     })
   },
 
-  startSimulatedRun: (workflowId, stepIds) => {
-    const initial: StepExecution[] = stepIds.map((id) => ({ stepId: id, status: 'pending' as StepStatus }))
-    set((s) => ({
-      executions: { ...s.executions, [workflowId]: initial },
-    }))
+  runWorkflow: async (workflowId, input) => {
+    set({ runLoading: true, runError: null })
 
-    let i = 0
-    const advance = () => {
-      if (i >= stepIds.length) return
-      const stepId = stepIds[i]
-      set((s) => {
-        const steps = [...(s.executions[workflowId] ?? [])]
-        const idx = steps.findIndex((x) => x.stepId === stepId)
-        if (idx >= 0) {
-          steps[idx] = {
-            ...steps[idx],
-            status: 'running',
-            startedAt: new Date().toISOString(),
-          }
-        }
-        return { executions: { ...s.executions, [workflowId]: steps } }
-      })
-      const durationMs = 800 + Math.floor(Math.random() * 1200)
-      setTimeout(() => {
-        set((s) => {
-          const steps = [...(s.executions[workflowId] ?? [])]
-          const idx = steps.findIndex((x) => x.stepId === stepId)
-          const fail = Math.random() < 0.03 && i > 0
-          if (idx >= 0) {
-            steps[idx] = {
-              ...steps[idx],
-              status: fail ? 'fail' : 'success',
-              completedAt: new Date().toISOString(),
-              durationMs,
-              error: fail ? 'RATE_LIMIT_EXCEEDED' : undefined,
-            }
-          }
-          return { executions: { ...s.executions, [workflowId]: steps } }
-        })
-        i++
-        setTimeout(advance, 400)
-      }, durationMs)
+    const res = await api.post<{ executionId?: string; status?: string }>('/api/workflow-library/run', { workflowId, input })
+    if (!res.success) {
+      set({ runLoading: false, runError: res.error || 'Run failed' })
+      return null
     }
-    setTimeout(advance, 500)
+
+    const executionId = res.data?.executionId
+    if (!executionId) {
+      set({ runLoading: false })
+      return null
+    }
+
+    set({ activeExecutionId: executionId })
+
+    const cleanup = subscribeSSE<WorkflowExecution & { steps?: Array<{ id: string; status: string }> }>(`/api/workflow/stream/${executionId}`, {
+      onEvent: (_eventType, data) => {
+        if (data.steps && Array.isArray(data.steps)) {
+          const mapped: StepExecution[] = data.steps.map((s) => ({
+            stepId: s.id,
+            status: s.status === 'completed' ? 'success' : (s.status as StepStatus),
+          }))
+          set((state) => ({
+            executions: { ...state.executions, [workflowId]: mapped },
+          }))
+        }
+      },
+      onDone: () => {
+        set({ runLoading: false, activeExecutionId: null })
+        get().fetchRecentExecutions()
+      },
+      onError: (err) => {
+        set({ runLoading: false, runError: err, activeExecutionId: null })
+      },
+    })
+
+    set({ _cleanupSSE: cleanup, runLoading: false })
+    return executionId
   },
 
-  stopSimulatedRun: (workflowId) => {
-    set((s) => ({
-      executions: { ...s.executions, [workflowId]: [] },
-    }))
+  stopRun: () => {
+    const { _cleanupSSE } = get()
+    _cleanupSSE?.()
+    set({ _cleanupSSE: null, activeExecutionId: null, runLoading: false })
+  },
+
+  fetchRecentExecutions: async () => {
+    const res = await api.get<{ executions: WorkflowExecution[]; count: number }>('/api/workflow/executions?limit=25')
+    if (res.success && res.data) {
+      set({ recentExecutions: res.data.executions })
+    }
   },
 }))

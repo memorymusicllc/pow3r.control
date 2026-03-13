@@ -64,7 +64,7 @@ export function OSCViewLayout({
 
   return (
     <div className={`min-h-full bg-[var(--color-bg-deep)] text-[var(--color-text-primary)] ${className}`}>
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg-surface)]/95 px-4 py-3">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-bg-surface)]/95 px-5 py-3">
         <h1 className="text-lg font-semibold text-[var(--color-text-primary)]">{title}</h1>
         <div className="flex items-center gap-2">
           {headerRight}
@@ -99,7 +99,7 @@ export function OSCViewLayout({
         </nav>
         )}
 
-        <main className="flex-1 p-4 overflow-auto">
+        <main className="flex-1 px-5 py-4 overflow-auto">
           <div className="max-w-[520px] lg:max-w-none mx-auto">{children}</div>
         </main>
       </div>

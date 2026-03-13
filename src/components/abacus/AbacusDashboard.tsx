@@ -2,62 +2,48 @@
  * pow3r.control - Abacus Platform Dashboard
  *
  * Purpose:
- * - 38-tool registry grid, conversation browser, KG viewer, media gallery, job monitor
- * - Card per tool with description, category, and action
+ * - Live tool registry from /api/mcp/topology filtered for Abacus
+ * - Conversation browser, KG viewer, media gallery, job monitor tabs
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useControlStore } from '../../store/control-store'
+import { api } from '../../lib/api-client'
 
-const TOOL_REGISTRY: Array<{ name: string; category: string; description?: string }> = [
-  { name: 'abacus_image_generate', category: 'Media', description: 'Generate images from prompts' },
-  { name: 'abacus_video_generate', category: 'Media', description: 'Generate videos from prompts' },
-  { name: 'abacus_chat_complete', category: 'AI/ML' },
-  { name: 'abacus_graph_rag_query', category: 'Knowledge Graph' },
-  { name: 'abacus_deep_research', category: 'AI/ML' },
-  { name: 'abacus_get_all_conversations', category: 'Conversations' },
-  { name: 'abacus_get_project_conversations', category: 'Conversations' },
-  { name: 'abacus_get_deepagent_conversations', category: 'Conversations' },
-  { name: 'abacus_list_deployment_conversations', category: 'Conversations' },
-  { name: 'abacus_get_deployment_conversation', category: 'Conversations' },
-  { name: 'abacus_get_chat_session', category: 'Conversations' },
-  { name: 'abacus_export_chat_session', category: 'Conversations' },
-  { name: 'abacus_list_conversations_by_app', category: 'Conversations' },
-  { name: 'abacus_get_conversation_by_id', category: 'Conversations' },
-  { name: 'abacus_create_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_add_entities', category: 'Knowledge Graph' },
-  { name: 'abacus_add_relationships', category: 'Knowledge Graph' },
-  { name: 'abacus_query_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_tune_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_get_kg_statistics', category: 'Knowledge Graph' },
-  { name: 'abacus_list_knowledge_graphs', category: 'Knowledge Graph' },
-  { name: 'abacus_delete_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_export_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_import_knowledge_graph', category: 'Knowledge Graph' },
-  { name: 'abacus_list_models', category: 'AI/ML' },
-  { name: 'abacus_list_datasets', category: 'AI/ML' },
-  { name: 'abacus_create_job', category: 'Jobs' },
-  { name: 'abacus_get_job_status', category: 'Jobs' },
-  { name: 'abacus_cancel_job', category: 'Jobs' },
-  { name: 'abacus_batch_media_generate', category: 'Media' },
-  { name: 'abacus_list_deployments', category: 'AI/ML' },
-  { name: 'abacus_get_deployment_status', category: 'AI/ML' },
-  { name: 'abacus_list_agents', category: 'AI/ML' },
-  { name: 'abacus_get_agent', category: 'AI/ML' },
-  { name: 'abacus_update_agent', category: 'AI/ML' },
-  { name: 'abacus_conversation_stats', category: 'Conversations' },
-  { name: 'abacus_health_check', category: 'AI/ML' },
-]
+interface McpTool { name: string; description?: string }
+interface McpServer { name: string; tools: McpTool[]; status?: string }
 
 export function AbacusDashboard() {
   const setViewMode = useControlStore((s) => s.setViewMode)
   const [activeTab, setActiveTab] = useState<'tools' | 'conversations' | 'kg' | 'media' | 'jobs'>('tools')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [tools, setTools] = useState<Array<{ name: string; category: string; description?: string }>>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      const res = await api.get<{ servers: McpServer[] }>('/api/mcp/topology')
+      if (res.success && res.data?.servers) {
+        const abacusServer = res.data.servers.find((s) => s.name === 'abacus' || s.name.includes('abacus'))
+        const abacusTools = abacusServer?.tools ?? []
+        const categorized = abacusTools.map((t) => {
+          let category = 'AI/ML'
+          if (t.name.includes('conversation') || t.name.includes('chat')) category = 'Conversations'
+          else if (t.name.includes('knowledge_graph') || t.name.includes('kg') || t.name.includes('entities') || t.name.includes('relationships')) category = 'Knowledge Graph'
+          else if (t.name.includes('image') || t.name.includes('video') || t.name.includes('media')) category = 'Media'
+          else if (t.name.includes('job')) category = 'Jobs'
+          return { name: t.name, category, description: t.description }
+        })
+        setTools(categorized)
+      }
+      setLoading(false)
+    })()
+  }, [])
 
   const filteredTools = categoryFilter === 'all'
-    ? TOOL_REGISTRY
-    : TOOL_REGISTRY.filter((t) => t.category === categoryFilter)
+    ? tools
+    : tools.filter((t) => t.category === categoryFilter)
 
-  const categories = Array.from(new Set(TOOL_REGISTRY.map((t) => t.category)))
+  const categories = Array.from(new Set(tools.map((t) => t.category)))
 
   return (
     <div className="p-4 space-y-4">
@@ -79,16 +65,17 @@ export function AbacusDashboard() {
 
       {activeTab === 'tools' && (
         <>
+          {loading && <p className="font-mono text-[10px] text-[var(--color-text-muted)]">Loading tools from MCP topology...</p>}
           <div className="flex gap-2">
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="px-2 py-1 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] font-mono text-[10px]"
             >
-              <option value="all">All ({TOOL_REGISTRY.length})</option>
+              <option value="all">All ({tools.length})</option>
               {categories.map((c) => (
                 <option key={c} value={c}>
-                  {c} ({TOOL_REGISTRY.filter((t) => t.category === c).length})
+                  {c} ({tools.filter((t) => t.category === c).length})
                 </option>
               ))}
             </select>
