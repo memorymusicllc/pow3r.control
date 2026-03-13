@@ -151,25 +151,13 @@ export async function fetchWorkflowsCombined(): Promise<WorkflowListResponse> {
   return fetchWorkflowList()
 }
 
-/** Fetch full workflow definition via workflow_library_view MCP tool */
-export async function fetchWorkflowView(workflowId: string, version?: string): Promise<Record<string, unknown> | null> {
+/** Fetch full workflow definition via HTTP API (avoids MCP PKG requirement) */
+export async function fetchWorkflowView(workflowId: string, _version?: string): Promise<Record<string, unknown> | null> {
   try {
-    const res = await fetch(`${API_BASE}/mcp/workflow-library/tools/call`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: 'wv-1',
-        method: 'tools/call',
-        params: {
-          name: 'workflow_library_view',
-          arguments: { workflowId, version },
-        },
-      }),
-    })
+    const res = await fetch(`${API_BASE}/api/workflow-library/view/${encodeURIComponent(workflowId)}`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const json = await res.json()
-    const workflow = json.data?.workflow ?? json.result?.workflow ?? json.workflow ?? null
+    const workflow = json.data?.workflow ?? json.workflow ?? null
     return workflow && typeof workflow === 'object' ? (workflow as Record<string, unknown>) : null
   } catch (err) {
     console.warn('[workflow-library-api] fetchWorkflowView failed:', err)
