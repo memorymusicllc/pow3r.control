@@ -47,6 +47,7 @@ import { MCPPlayground } from './components/playground/MCPPlayground'
 import { PDAMView } from './components/pdam/PDAMView'
 import { MCPMonitorView } from './components/mcp-monitor/MCPMonitorView'
 import { DataKnowledgeView } from './components/data/DataKnowledgeView'
+import { ChatView } from './components/chat/ChatView'
 import { OSCViewLayout } from './components/layout/OSCViewLayout'
 import { XBuggerBar } from './components/XBuggerBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -430,6 +431,13 @@ export default function App() {
           <div className="w-full h-full overflow-auto">
             <OSCViewLayout title="Data & Knowledge">
               <DataKnowledgeView />
+            </OSCViewLayout>
+          </div>
+        )}
+        {viewMode === 'chat' && (
+          <div className="w-full h-full overflow-auto">
+            <OSCViewLayout title="Chat">
+              <ChatView />
             </OSCViewLayout>
           </div>
         )}
