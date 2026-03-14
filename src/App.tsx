@@ -11,12 +11,12 @@
  * - Bottom nav bar fixed to bottom, responsive
  * - Max card width 520px per dashboard rules
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { useControlStore } from './store/control-store'
 import { loadConfigByName } from './lib/config-loader'
 import { NodeExpansionProvider } from './context/NodeExpansionContext'
 import { Graph2D } from './components/graph/Graph2D'
-import { Graph3D } from './components/graph/Graph3D'
+const Graph3D = lazy(() => import('./components/graph/Graph3D').then((m) => ({ default: m.Graph3D })))
 import { TimelineView } from './components/graph/TimelineView'
 import { NodeDetail } from './components/panels/NodeDetail'
 import { EdgeDetail } from './components/panels/EdgeDetail'
@@ -198,48 +198,57 @@ export default function App() {
   }, [addEvent, setConnected, updateStepFromEvent, fetchXFilesCases])
 
   useEffect(() => {
-    let pending: Array<{ nodeId: string; patch: Partial<import('./lib/types').XmapNode> }> = []
+    let disposed = false
+    let wsDispose: (() => void) | null = null
     let rafId: number | null = null
-    let lastFlushAt = 0
-    const MIN_FLUSH_INTERVAL_MS = 800
+    const DELAY_MS = 2500
 
-    const flush = () => {
-      if (pending.length === 0) return
-      rafId = null
-      const now = Date.now()
-      if (lastFlushAt > 0 && now - lastFlushAt < MIN_FLUSH_INTERVAL_MS) {
-        rafId = requestAnimationFrame(flush)
-        return
-      }
-      lastFlushAt = now
-      const batch = pending
-      pending = []
-      patchNodeStatuses(batch)
-    }
+    const timer = setTimeout(() => {
+      if (disposed) return
+      let pending: Array<{ nodeId: string; patch: Partial<import('./lib/types').XmapNode> }> = []
+      let lastFlushAt = 0
+      const MIN_FLUSH_INTERVAL_MS = 1000
 
-    const scheduleFlush = () => {
-      if (rafId == null) {
-        rafId = requestAnimationFrame(flush)
-      }
-    }
-
-    const dispose = connectXmapWebSocket({
-      onChange: (event) => {
-        const d = event.data as Record<string, unknown>
-        if (d?.nodeId && typeof d.nodeId === 'string') {
-          const patch: Record<string, unknown> = {}
-          if (d.status) patch.status = d.status
-          if (d.healthScore !== undefined) patch.healthScore = d.healthScore
-          if (d.phase) patch.phase = d.phase
-          pending.push({ nodeId: d.nodeId, patch: patch as Partial<import('./lib/types').XmapNode> })
-          scheduleFlush()
+      const flush = () => {
+        if (pending.length === 0 || disposed) return
+        rafId = null
+        const now = Date.now()
+        if (lastFlushAt > 0 && now - lastFlushAt < MIN_FLUSH_INTERVAL_MS) {
+          rafId = requestAnimationFrame(flush)
+          return
         }
-      },
-      onConnect: () => console.log('[XMAP WS] Connected'),
-      onDisconnect: () => console.log('[XMAP WS] Disconnected'),
-    })
+        lastFlushAt = now
+        const batch = pending
+        pending = []
+        patchNodeStatuses(batch)
+      }
+
+      const scheduleFlush = () => {
+        if (rafId == null) rafId = requestAnimationFrame(flush)
+      }
+
+      wsDispose = connectXmapWebSocket({
+        onChange: (event) => {
+          if (disposed) return
+          const d = event.data as Record<string, unknown>
+          if (d?.nodeId && typeof d.nodeId === 'string') {
+            const patch: Record<string, unknown> = {}
+            if (d.status) patch.status = d.status
+            if (d.healthScore !== undefined) patch.healthScore = d.healthScore
+            if (d.phase) patch.phase = d.phase
+            pending.push({ nodeId: d.nodeId, patch: patch as Partial<import('./lib/types').XmapNode> })
+            scheduleFlush()
+          }
+        },
+        onConnect: () => console.log('[XMAP WS] Connected'),
+        onDisconnect: () => console.log('[XMAP WS] Disconnected'),
+      })
+    }, DELAY_MS)
+
     return () => {
-      dispose()
+      disposed = true
+      clearTimeout(timer)
+      wsDispose?.()
       if (rafId != null) cancelAnimationFrame(rafId)
     }
   }, [patchNodeStatuses])
@@ -337,7 +346,11 @@ export default function App() {
         {/* Main content area */}
         <main className="flex-1 relative overflow-hidden">
         {viewMode === '2d' && <Graph2D />}
-        {viewMode === '3d' && <Graph3D />}
+        {viewMode === '3d' && (
+          <Suspense fallback={<div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-deep)]"><div className="w-8 h-8 border-2 border-[var(--color-cyan)] border-t-transparent rounded-full animate-spin" /></div>}>
+            <Graph3D />
+          </Suspense>
+        )}
         {viewMode === 'timeline' && <TimelineView />}
         {viewMode === 'dashboard' && <DashboardGrid />}
         {viewMode === 'abacus' && (
@@ -510,20 +523,22 @@ export default function App() {
   )
 }
 
-/** Filter count on search results: nodes, edges, wf, gates (next to search bar) */
+/** Filter count on search results: nodes, edges, wf, gates (next to search bar)
+ * React #185 fix: select primitive counts, not arrays. selectFilteredNodes/Edges return
+ * new arrays each call -> getSnapshot changes every time -> infinite re-render loop. */
 function FilteredStatsBar({ compact = false }: { compact?: boolean }) {
-  const nodes = useControlStore(selectFilteredNodes)
-  const edges = useControlStore(selectFilteredEdges)
-  const workflows = useControlStore(selectWorkflows)
-  const gates = useControlStore(selectGuardianGates)
+  const nodeCount = useControlStore((s) => selectFilteredNodes(s).length)
+  const edgeCount = useControlStore((s) => selectFilteredEdges(s).length)
+  const workflowCount = useControlStore((s) => selectWorkflows(s).length)
+  const gateCount = useControlStore((s) => selectGuardianGates(s).length)
 
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 font-mono text-[9px] text-[var(--color-text-muted)]">
-        <span className="text-[var(--color-text-secondary)]">{nodes.length}</span>n
-        <span className="text-[var(--color-text-secondary)]">{edges.length}</span>e
-        <span className="text-[var(--color-text-secondary)]">{workflows.length}</span>wf
-        <span className="text-[var(--color-text-secondary)]">{gates.length}</span>g
+        <span className="text-[var(--color-text-secondary)]">{nodeCount}</span>n
+        <span className="text-[var(--color-text-secondary)]">{edgeCount}</span>e
+        <span className="text-[var(--color-text-secondary)]">{workflowCount}</span>wf
+        <span className="text-[var(--color-text-secondary)]">{gateCount}</span>g
       </div>
     )
   }
@@ -531,16 +546,16 @@ function FilteredStatsBar({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--color-text-muted)]">
       <span>
-        <span className="text-[var(--color-text-secondary)]">{nodes.length}</span> nodes
+        <span className="text-[var(--color-text-secondary)]">{nodeCount}</span> nodes
       </span>
       <span>
-        <span className="text-[var(--color-text-secondary)]">{edges.length}</span> edges
+        <span className="text-[var(--color-text-secondary)]">{edgeCount}</span> edges
       </span>
       <span>
-        <span className="text-[var(--color-text-secondary)]">{workflows.length}</span> wf
+        <span className="text-[var(--color-text-secondary)]">{workflowCount}</span> wf
       </span>
       <span>
-        <span className="text-[var(--color-text-secondary)]">{gates.length}</span> gates
+        <span className="text-[var(--color-text-secondary)]">{gateCount}</span> gates
       </span>
     </div>
   )

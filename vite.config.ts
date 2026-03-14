@@ -26,9 +26,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'three-core': ['three'],
-          'r3f': ['@react-three/fiber', '@react-three/drei'],
-          'r3f-postprocessing': ['@react-three/postprocessing', 'postprocessing'],
           'd3': ['d3-force', 'd3-force-3d'],
           'zustand': ['zustand'],
         },

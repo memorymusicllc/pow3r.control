@@ -154,11 +154,13 @@ export function Graph2D() {
   const compoundRef = useRef(compound)
   compoundRef.current = compound
 
+  // React #185 fix: layoutKey must NOT include containerSize - ResizeObserver fires during
+  // initial layout, causing layoutKey change -> effect re-run -> tick -> setPositions -> re-render -> loop
   const layoutKey = useMemo(() => {
     const nodeIds = compound.nodes.map((n) => n.node_id).sort().join(',')
     const edgeKeys = compound.edges.map((e) => `${e.from_node}->${e.to_node}`).sort().join('|')
-    return `${nodeIds}|${edgeKeys}|${containerSize.width}x${containerSize.height}`
-  }, [compound.nodes, compound.edges, containerSize.width, containerSize.height])
+    return `${nodeIds}|${edgeKeys}`
+  }, [compound.nodes, compound.edges])
 
   useEffect(() => {
     const compound = compoundRef.current
@@ -240,8 +242,9 @@ export function Graph2D() {
       }
     })
 
-    // Throttle React state updates via requestAnimationFrame to avoid render storms
+    // Throttle React state updates: max 1 setState per 60ms to prevent React #185
     let pendingUpdate = false
+    let lastUpdateAt = 0
     simulation.on('tick', () => {
       const next = new Map<string, { x: number; y: number }>()
       simNodes.forEach((n) => {
@@ -249,7 +252,10 @@ export function Graph2D() {
       })
       positionsRef.current = next
       if (!pendingUpdate) {
+        const now = Date.now()
+        if (now - lastUpdateAt < 60) return
         pendingUpdate = true
+        lastUpdateAt = now
         rafIdRef.current = requestAnimationFrame(() => {
           pendingUpdate = false
           setPositions(new Map(positionsRef.current))

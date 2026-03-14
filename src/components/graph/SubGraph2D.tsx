@@ -60,14 +60,22 @@ export function SubGraph2D({ nodes, edges, failures, onNodeClick }: SubGraph2DPr
     return () => obs.disconnect()
   }, [])
 
+  // React #185 fix: layoutKey excludes containerSize; throttle setPositions
+  const layoutKey = `${nodes.map((n) => n.node_id).sort().join(',')}|${edges.map((e) => `${e.from_node}->${e.to_node}`).sort().join('|')}`
+  const positionsRef = useRef<Map<string, { x: number; y: number }>>(new Map())
+  const rafIdRef = useRef<number>(0)
+  const containerSizeRef = useRef(containerSize)
+  containerSizeRef.current = containerSize
+
   useEffect(() => {
     if (nodes.length === 0) return
+    const size = containerSizeRef.current
 
     const simNodes: SimNode[] = nodes.map((n) => ({
       id: n.node_id,
       node: n,
-      x: containerSize.width / 2 + (Math.random() - 0.5) * 50,
-      y: containerSize.height / 2 + (Math.random() - 0.5) * 50,
+      x: size.width / 2 + (Math.random() - 0.5) * 50,
+      y: size.height / 2 + (Math.random() - 0.5) * 50,
     }))
 
     const nodeMap = new Map(simNodes.map((n) => [n.id, n]))
@@ -88,22 +96,35 @@ export function SubGraph2D({ nodes, edges, failures, onNodeClick }: SubGraph2DPr
           .distance(80)
       )
       .force('charge', forceManyBody().strength(-200))
-      .force('center', forceCenter(containerSize.width / 2, containerSize.height / 2))
+      .force('center', forceCenter(size.width / 2, size.height / 2))
       .force('collide', forceCollide(30))
       .alphaDecay(0.05)
 
+    let pendingUpdate = false
+    let lastUpdateAt = 0
     simulation.on('tick', () => {
       const next = new Map<string, { x: number; y: number }>()
       simNodes.forEach((n) => {
         next.set(n.id, { x: n.x ?? 0, y: n.y ?? 0 })
       })
-      setPositions(new Map(next))
+      positionsRef.current = next
+      if (!pendingUpdate) {
+        const now = Date.now()
+        if (lastUpdateAt > 0 && now - lastUpdateAt < 60) return
+        pendingUpdate = true
+        lastUpdateAt = now
+        rafIdRef.current = requestAnimationFrame(() => {
+          pendingUpdate = false
+          setPositions(new Map(positionsRef.current))
+        })
+      }
     })
 
     return () => {
       simulation.stop()
+      cancelAnimationFrame(rafIdRef.current)
     }
-  }, [nodes, edges, containerSize])
+  }, [layoutKey])
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault()

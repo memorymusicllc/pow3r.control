@@ -117,6 +117,7 @@ export function useForceLayout3D(
     simRef.current = sim
 
     let pendingUpdate = false
+    let lastUpdateAt = 0
     sim.on('tick', () => {
       const next = new Map<string, Position3D>()
       simNodes.forEach((n) => {
@@ -128,7 +129,10 @@ export function useForceLayout3D(
       })
       positionsRef.current = next
       if (!pendingUpdate) {
+        const now = Date.now()
+        if (lastUpdateAt > 0 && now - lastUpdateAt < 60) return
         pendingUpdate = true
+        lastUpdateAt = now
         rafIdRef.current = requestAnimationFrame(() => {
           pendingUpdate = false
           setPositions(new Map(positionsRef.current))
