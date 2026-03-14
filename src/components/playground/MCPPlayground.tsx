@@ -17,6 +17,8 @@ import {
   callMCPTool,
   fetchPKGContext,
   getPKGSearchPageURL,
+  getExampleArgs,
+  pingMCP,
   type MCPTopology,
   type PlaygroundCallResult,
   type PKGSnippet,
@@ -58,6 +60,7 @@ export function MCPPlayground() {
   const [pkgLoading, setPkgLoading] = useState(false)
   const [pkgExpanded, setPkgExpanded] = useState<Set<number>>(new Set())
   const [pkgLimit, setPkgLimit] = useState(10)
+  const [pingStatus, setPingStatus] = useState<{ ok: boolean; latency: number; message: string } | null>(null)
 
   const selectedServerRef = useRef(selectedServer)
   selectedServerRef.current = selectedServer
@@ -81,6 +84,17 @@ export function MCPPlayground() {
   useEffect(() => {
     loadTopology()
   }, [loadTopology])
+
+  // Load example args when tool selected
+  useEffect(() => {
+    if (!selectedTool || !topology) return
+    const server = topology.servers.find((s) => s.name === selectedServer)
+    const tool = server?.tools.find((t) => t.name === selectedTool)
+    if (tool) {
+      const ex = getExampleArgs(tool)
+      setArgsJson(JSON.stringify(ex, null, 2))
+    }
+  }, [selectedTool, selectedServer, topology])
 
   useEffect(() => {
     if (!selectedTool) {
@@ -189,6 +203,30 @@ export function MCPPlayground() {
         Test any MCP tool with X-System, XBugger, telemetry, and AI insights
       </p>
 
+      {/* PING button */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={async () => {
+            setPingStatus(null)
+            const result = await pingMCP()
+            setPingStatus(result)
+          }}
+          className="font-mono text-[10px] px-3 py-1.5 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-panel)] min-h-[36px]"
+          title="Test connection to config.superbots.link"
+        >
+          [PING]
+        </button>
+        {pingStatus && (
+          <span
+            className={`font-mono text-[10px] ${pingStatus.ok ? 'text-[var(--color-success)]' : 'text-[var(--color-error)]'}`}
+            title={pingStatus.message}
+          >
+            {pingStatus.ok ? `${pingStatus.latency}ms` : pingStatus.message}
+          </span>
+        )}
+      </div>
+
       {/* Server selector */}
       <div className="space-y-2">
         <label className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)]">
@@ -209,6 +247,18 @@ export function MCPPlayground() {
           ))}
         </select>
       </div>
+
+      {/* No tools fallback */}
+      {!loading && topology && (topology.servers.length === 0 || toolsForServer.length === 0) && (
+        <div className="rounded border border-[var(--color-border)] bg-[var(--color-bg-panel)] p-4 text-center">
+          <p className="font-mono text-xs text-[var(--color-text-muted)]">
+            No tools available.
+          </p>
+          <p className="font-mono text-[10px] text-[var(--color-text-muted)] mt-1">
+            Check <a href="https://config.superbots.link/api/mcp/topology" target="_blank" rel="noopener noreferrer" className="text-[var(--color-cyan)] hover:underline">config.superbots.link/api/mcp/topology</a> or docs.
+          </p>
+        </div>
+      )}
 
       {/* Tool selector with search */}
       <div className="space-y-2">
@@ -239,6 +289,18 @@ export function MCPPlayground() {
             {filteredTools.length} of {toolsForServer.length} tools
           </span>
         )}
+        {selectedTool && (() => {
+          const server = topology?.servers.find((s) => s.name === selectedServer)
+          const tool = server?.tools.find((t) => t.name === selectedTool)
+          return tool?.description ? (
+            <div className="mt-2 rounded border border-[var(--color-border)] bg-[var(--color-bg-panel)] p-2">
+              <h3 className="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-1">
+                Guidelines
+              </h3>
+              <p className="text-xs text-[var(--color-text-secondary)]">{tool.description}</p>
+            </div>
+          ) : null
+        })()}
       </div>
 
       {/* Agent suggestions */}

@@ -180,3 +180,43 @@ export async function fetchPKGContext(query: string, limit = 10): Promise<PKGCon
 export function getPKGSearchPageURL(query: string, limit = 20): string {
   return `${API_BASE}/pkg-search?q=${encodeURIComponent(query)}&source=pkg_hybrid&limit=${limit}`
 }
+
+/** Example args by tool name (fallback when inputSchema has no examples) */
+const EXAMPLE_ARGS: Record<string, Record<string, unknown>> = {
+  pkg_search: { query: 'deployment workflow', topK: 5 },
+  pkg_hybrid: { query: 'XMAP config', topK: 10 },
+  x_plugin_submit_observation: { type: 'info', source: 'cursor', severity: 'info', data: { message: 'Test observation' } },
+  x_plugin_get_all_x_system_data: { timeRange: 'last_15m', includeXPlugin: true, includeXLog: true },
+  plan_memory_list: {},
+}
+
+/** Generate example args from inputSchema or fallback */
+export function getExampleArgs(tool: MCPTool): Record<string, unknown> {
+  const fallback = EXAMPLE_ARGS[tool.name]
+  if (fallback) return fallback
+  const schema = tool.inputSchema
+  if (!schema || typeof schema !== 'object') return {}
+  const props = (schema.properties as Record<string, { type?: string; default?: unknown }>) ?? {}
+  const ex: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(props)) {
+    if (v?.default !== undefined) ex[k] = v.default
+    else if (v?.type === 'string') ex[k] = ''
+    else if (v?.type === 'number') ex[k] = 0
+    else if (v?.type === 'boolean') ex[k] = false
+    else if (v?.type === 'object') ex[k] = {}
+    else if (v?.type === 'array') ex[k] = []
+  }
+  return Object.keys(ex).length ? ex : {}
+}
+
+/** Ping MCP gateway to check connection */
+export async function pingMCP(): Promise<{ ok: boolean; latency: number; message: string }> {
+  const start = Date.now()
+  try {
+    const res = await fetch(`${API_BASE}/api/mcp/health`)
+    const latency = Date.now() - start
+    return { ok: res.ok, latency, message: res.ok ? 'Connected' : `HTTP ${res.status}` }
+  } catch (err) {
+    return { ok: false, latency: Date.now() - start, message: err instanceof Error ? err.message : 'Network error' }
+  }
+}

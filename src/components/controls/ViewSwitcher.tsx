@@ -20,7 +20,7 @@ interface ViewItem {
 
 const PRIMARY_VIEWS: ViewItem[] = [
   { mode: 'dashboard', label: 'Dash', icon: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z' },
-  { mode: 'library', label: 'Library', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+  { mode: 'library', label: 'Workflow Library', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
 ]
 
 const OVERFLOW_VIEWS: ViewItem[] = [

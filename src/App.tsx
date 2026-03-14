@@ -48,12 +48,14 @@ import { PDAMView } from './components/pdam/PDAMView'
 import { MCPMonitorView } from './components/mcp-monitor/MCPMonitorView'
 import { DataKnowledgeView } from './components/data/DataKnowledgeView'
 import { OSCViewLayout } from './components/layout/OSCViewLayout'
+import { XBuggerBar } from './components/XBuggerBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ThemeToggle } from './components/controls/ThemeToggle'
 import { ReviewToggle } from './components/controls/ReviewToggle'
 import { ThemeSync } from './components/ThemeSync'
 import { ViewPanelMenu } from './components/controls/ViewPanelMenu'
 import { useLayoutMode } from './hooks/useLayoutMode'
+import { useXBuggerStore } from './store/xbugger-store'
 import {
   selectFilteredNodes,
   selectFilteredEdges,
@@ -150,27 +152,43 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
+    const { setProgress, reset } = useXBuggerStore.getState()
+    setProgress(10, 'Loading config...')
     const load = async () => {
       setConfigError(null)
       try {
+        setProgress(40, 'Loading platform-expansion...')
         const config = await loadConfigByName('platform-expansion')
-        if (!cancelled) loadConfig(config)
+        if (!cancelled) {
+          setProgress(90, 'Applying config...')
+          loadConfig(config)
+          setProgress(100, 'Ready')
+          setTimeout(() => reset(), 400)
+        }
       } catch (err) {
         if (cancelled) return
         console.warn('[pow3r.control] platform-expansion failed, trying platform-v7:', err)
         try {
+          setProgress(50, 'Loading platform-v7...')
           const config = await loadConfigByName('platform-v7')
-          if (!cancelled) loadConfig(config)
+          if (!cancelled) {
+            setProgress(90, 'Applying config...')
+            loadConfig(config)
+            setProgress(100, 'Ready')
+            setTimeout(() => reset(), 400)
+          }
         } catch (e) {
           if (cancelled) return
           console.error('[pow3r.control] Config load failed:', e)
           setConfigError(e instanceof Error ? e.message : 'Config load failed')
+          reset()
         }
       }
     }
     load()
     return () => {
       cancelled = true
+      reset()
     }
   }, [loadConfig, configRetryKey])
 
@@ -286,6 +304,8 @@ export default function App() {
     <NodeExpansionProvider>
     <ThemeSync />
     <div className="w-full h-full flex flex-col bg-[var(--color-bg-deep)]" data-review={isReviewMode ? 'true' : undefined}>
+      {/* XBugger - full-width loading progress at top */}
+      <XBuggerBar />
       {/* Top bar - responsive: compact on mobile, full on desktop */}
       <header className="flex items-center justify-between px-3 py-2 bg-[var(--color-bg-surface)] border-b border-[var(--color-border)] z-30 shrink-0 gap-2">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
@@ -376,7 +396,7 @@ export default function App() {
           <div className="w-full h-full overflow-auto">
             <ErrorBoundary>
               <OSCViewLayout
-                title="Library"
+                title="Workflow Library"
                 onClose={() => useControlStore.getState().setViewMode('2d')}
               >
                 <WorkflowLibrary

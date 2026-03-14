@@ -13,11 +13,18 @@ function StoreCard({ item }: { item: StoreItem & { id?: string; type?: string; d
   const borderColor = available ? 'var(--color-success)' : 'var(--color-border)'
   const nameColor = available ? 'var(--color-cyan)' : 'var(--color-text-muted)'
   const count = item.itemCount ?? item.tableCount ?? item.documentCount
+  const ledColor = available ? 'var(--color-success)' : 'var(--color-error)'
+  const ledTitle = available ? 'Available' : 'Unavailable (store not reachable or not configured)'
 
   return (
     <div className="px-4 py-3 rounded border bg-[var(--color-bg-card)] font-mono text-[10px]" style={{ borderColor }}>
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: available ? 'var(--color-success)' : 'var(--color-error)' }} />
+        <span
+          className="w-2 h-2 rounded-full shrink-0"
+          style={{ backgroundColor: ledColor }}
+          title={ledTitle}
+          aria-label={ledTitle}
+        />
         <span style={{ color: nameColor }}>{item.name}</span>
         {count != null && <span className="ml-auto text-[var(--color-text-secondary)]">{count} items</span>}
       </div>
@@ -50,6 +57,16 @@ export function DataKnowledgeView() {
   return (
     <div className="px-5 py-4 space-y-6">
       <h2 className="font-mono text-sm font-semibold text-[var(--color-cyan)]">Data & Knowledge</h2>
+      <div className="flex items-center gap-4 font-mono text-[10px] text-[var(--color-text-muted)]">
+        <span title="Store is reachable and configured">
+          <span className="w-2 h-2 rounded-full inline-block align-middle mr-1" style={{ backgroundColor: 'var(--color-success)' }} />
+          Available
+        </span>
+        <span title="Store not reachable, not configured, or error">
+          <span className="w-2 h-2 rounded-full inline-block align-middle mr-1" style={{ backgroundColor: 'var(--color-error)' }} />
+          Unavailable (Media Bucket, PDAM Bucket: red = not configured or R2 binding error)
+        </span>
+      </div>
       {loading && <p className="font-mono text-[10px] text-[var(--color-text-muted)]">Loading inventory...</p>}
       {error && <p className="font-mono text-[10px] text-[var(--color-error)]">{error}</p>}
 
