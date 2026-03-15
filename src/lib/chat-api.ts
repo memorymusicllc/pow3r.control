@@ -136,3 +136,21 @@ export async function triggerIngest(workflowId: string, input?: object): Promise
   if (!json.success) throw new Error(json.error || json.data?.error || 'Ingest trigger failed')
   return json.data || { started: true, workflowId }
 }
+
+export async function fetchChatTags(): Promise<{ tags: string[] }> {
+  const res = await fetch(`${API_BASE}/chat/tags`)
+  const json = await res.json()
+  if (!json.success) return { tags: [] }
+  return json.data || { tags: [] }
+}
+
+export async function triggerPlatformIngest(platform: 'abacus' | 'gemini' | 'grok', limit = 100): Promise<{ platform: string; recorded?: number; conversations?: number; errors?: string[] }> {
+  const res = await fetch(`${API_BASE}/chat/ingest/platform`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ platform, limit }),
+  })
+  const json = await res.json()
+  if (!json.success) throw new Error(json.error || json.data?.error || 'Platform ingest failed')
+  return json.data || { platform }
+}
