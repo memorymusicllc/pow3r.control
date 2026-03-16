@@ -31,6 +31,10 @@ export function UnifiedStatusWidget() {
   }, [])
 
   const nodeCount = config?.nodes?.length ?? 0
+  const blockedNodes = config?.nodes?.filter(
+    (n) =>
+      (n.developmentStatus?.blockers?.length ?? 0) > 0 || !!n.developmentStatus?.lastError
+  ).length ?? 0
   const openCases = xfilesCases.filter((c) => c.status !== 'closed').length
   const runningWorkflows = recentExecutions.filter((e) => e.status === 'running').length
   const recentFailed = recentExecutions.filter((e) => e.status === 'failed').length
@@ -55,6 +59,7 @@ export function UnifiedStatusWidget() {
 
       <div className="grid grid-cols-2 gap-3 mb-3">
         <MetricCard label="Plans in progress" value={incompletePlans} subtext={inProgress ? inProgress.name : undefined} color="var(--color-cyan)" />
+        <MetricCard label="XMAP blocked" value={blockedNodes} color={blockedNodes > 0 ? 'var(--color-error)' : 'var(--color-success)'} />
         <MetricCard label="X-Files open" value={openCases} color={openCases > 0 ? 'var(--color-error)' : 'var(--color-success)'} />
         <MetricCard label="Workflows running" value={runningWorkflows} subtext={recentFailed > 0 ? `${recentFailed} failed` : undefined} color="var(--color-amber)" />
         <MetricCard label="Guardian health" value={`${healthScore}%`} subtext={`${guardianSummary.passed}/${guardianSummary.total} pass`} color={healthScore >= 80 ? 'var(--color-success)' : 'var(--color-amber)'} />

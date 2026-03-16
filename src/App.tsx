@@ -255,6 +255,9 @@ export default function App() {
             if (d.status) patch.status = d.status
             if (d.healthScore !== undefined) patch.healthScore = d.healthScore
             if (d.phase) patch.phase = d.phase
+            if (d.developmentStatus && typeof d.developmentStatus === 'object') {
+              patch.developmentStatus = d.developmentStatus as import('./lib/types').XmapDevelopmentStatus
+            }
             pending.push({ nodeId: d.nodeId, patch: patch as Partial<import('./lib/types').XmapNode> })
             scheduleFlush()
           }

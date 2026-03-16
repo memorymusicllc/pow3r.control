@@ -129,14 +129,15 @@ function strArr(v: unknown): string[] {
 }
 
 function sanitizeNode(raw: Record<string, unknown>): XmapNode {
-  return {
+  const devStatus = raw.developmentStatus as Record<string, unknown> | undefined
+  const node: XmapNode = {
     node_id: str(raw.node_id ?? raw.id),
     node_type: (str(raw.node_type ?? raw.type) || 'service') as XmapNode['node_type'],
     name: str(raw.name) || str(raw.node_id ?? raw.id) || 'unnamed',
     description: str(raw.description) || undefined,
     tech_stack: strArr(raw.tech_stack),
     deployment_targets: strArr(raw.deployment_targets),
-    status: (str(raw.status) || 'unknown') as XmapNode['status'],
+    status: (str(raw.status) ?? (devStatus?.phase ? mapV5Status(str(devStatus.phase)) : 'unknown')) as XmapNode['status'],
     owner: str(raw.owner) || undefined,
     required_tests: strArr(raw.required_tests),
     telemetry_endpoints: strArr(raw.telemetry_endpoints),
@@ -156,6 +157,19 @@ function sanitizeNode(raw: Record<string, unknown>): XmapNode {
     key_data_types: strArr(raw.key_data_types),
     line_types: strArr(raw.line_types),
   }
+  if (devStatus && typeof devStatus === 'object') {
+    node.developmentStatus = {
+      phase: str(devStatus.phase),
+      completion: typeof devStatus.completion === 'number' ? devStatus.completion : undefined,
+      healthScore: typeof devStatus.healthScore === 'number' ? devStatus.healthScore : undefined,
+      notes: str(devStatus.notes),
+      blockers: Array.isArray(devStatus.blockers) ? devStatus.blockers.map((b) => str(b)) : undefined,
+      lastError: str(devStatus.lastError),
+      lastDeployAttempt: str(devStatus.lastDeployAttempt),
+      lastUpdate: str(devStatus.lastUpdate),
+    }
+  }
+  return node
 }
 
 function sanitizeEdge(raw: Record<string, unknown>): XmapEdge {

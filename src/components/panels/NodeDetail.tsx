@@ -109,6 +109,31 @@ export function NodeDetail() {
             {node.owner && <Row label="Owner" value={node.owner} />}
           </Section>
 
+          {/* Blockers / Last Error (CTO insights from XMAP) */}
+          {(node.developmentStatus?.blockers?.length ?? 0) > 0 && (
+            <Section title="Blockers">
+              <ul className="text-xs text-[var(--color-error)] space-y-0.5 list-disc list-inside">
+                {node.developmentStatus!.blockers!.map((b) => (
+                  <li key={b}>{b}</li>
+                ))}
+              </ul>
+            </Section>
+          )}
+          {node.developmentStatus?.lastError && (
+            <Section title="Last Error">
+              <p className="text-xs text-[var(--color-error)] font-mono break-words">
+                {node.developmentStatus.lastError}
+              </p>
+            </Section>
+          )}
+          {node.developmentStatus?.lastDeployAttempt && (
+            <Section title="Last Deploy">
+              <p className="text-xs text-[var(--color-text-muted)] font-mono">
+                {node.developmentStatus.lastDeployAttempt}
+              </p>
+            </Section>
+          )}
+
           {/* Description */}
           {node.description && (
             <Section title="Description">

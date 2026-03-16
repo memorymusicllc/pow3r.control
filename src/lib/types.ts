@@ -102,6 +102,18 @@ export interface XmapNodeExtended {
   line_types?: string[]
 }
 
+/** Development status from xmap_update_dev_status (Phase 5 agent_unblock) */
+export interface XmapDevelopmentStatus {
+  phase?: string
+  completion?: number
+  healthScore?: number
+  notes?: string
+  blockers?: string[]
+  lastError?: string
+  lastDeployAttempt?: string
+  lastUpdate?: string
+}
+
 export interface XmapNode extends XmapNodeExtended {
   node_id: string
   node_type: NodeType
@@ -115,6 +127,8 @@ export interface XmapNode extends XmapNodeExtended {
   telemetry_endpoints?: string[]
   privileges?: Record<string, string>
   immutable_flags?: string[]
+  /** Real-time dev status from XMAP WebSocket (blockers, lastError, lastDeployAttempt) */
+  developmentStatus?: XmapDevelopmentStatus
 }
 
 export interface XmapEdge {
