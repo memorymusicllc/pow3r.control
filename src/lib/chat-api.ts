@@ -144,11 +144,15 @@ export async function fetchChatTags(): Promise<{ tags: string[] }> {
   return json.data || { tags: [] }
 }
 
-export async function triggerPlatformIngest(platform: 'abacus' | 'gemini' | 'grok', limit = 100): Promise<{ platform: string; recorded?: number; conversations?: number; errors?: string[] }> {
+export async function triggerPlatformIngest(
+  platform: 'abacus' | 'gemini' | 'grok',
+  options?: { limit?: number; deploymentId?: string; projectId?: string }
+): Promise<{ platform: string; recorded?: number; conversations?: number; errors?: string[] }> {
+  const { limit = 100, deploymentId, projectId } = options || {}
   const res = await fetch(`${API_BASE}/chat/ingest/platform`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ platform, limit }),
+    body: JSON.stringify({ platform, limit, deploymentId, projectId }),
   })
   const json = await res.json()
   if (!json.success) throw new Error(json.error || json.data?.error || 'Platform ingest failed')

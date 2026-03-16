@@ -7,9 +7,11 @@
  * - Full-text search with auto-complete dropdown
  * - Expand all / Collapse all
  * - Message: date | platform | title; ID at bottom; full content (no truncation)
+ * - Markdown rendering for message content
  * - Platform ingest (Abacus, etc.)
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 import {
   fetchChatSessions,
   fetchChatMessages,
@@ -73,6 +75,7 @@ export function ChatView() {
   const [ingestLoading, setIngestLoading] = useState(false)
   const [platformIngestLoading, setPlatformIngestLoading] = useState<string | null>(null)
   const [ingestError, setIngestError] = useState<string | null>(null)
+  const [abacusDeploymentId, setAbacusDeploymentId] = useState('')
   const searchRef = useRef<HTMLInputElement>(null)
   const tagRef = useRef<HTMLInputElement>(null)
 
@@ -207,7 +210,10 @@ export function ChatView() {
     setPlatformIngestLoading(plat)
     setIngestError(null)
     try {
-      await triggerPlatformIngest(plat)
+      const opts = plat === 'abacus' && abacusDeploymentId.trim()
+        ? { deploymentId: abacusDeploymentId.trim() }
+        : undefined
+      await triggerPlatformIngest(plat, opts)
       await loadSessions()
       if (platform !== 'telegram') await loadStats()
     } catch (e) {
@@ -322,6 +328,13 @@ export function ChatView() {
         >
           {ingestLoading ? 'Running...' : 'Ingest / Update'}
         </button>
+        <input
+          type="text"
+          placeholder="Abacus deployment ID (optional)"
+          value={abacusDeploymentId}
+          onChange={(e) => setAbacusDeploymentId(e.target.value)}
+          className="w-36 px-2 py-1.5 rounded border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-primary)] text-xs"
+        />
         <button
           onClick={() => handlePlatformIngest('abacus')}
           disabled={platformIngestLoading !== null}
@@ -375,7 +388,7 @@ export function ChatView() {
                     {title}
                   </span>
                   <span className="text-xs text-[var(--color-text-muted)] shrink-0 ml-2">
-                    {s.messageCount ?? msgs.length ?? 0} msgs
+                    {s.last_message_at ? formatDate(s.last_message_at) : ''} · {s.messageCount ?? msgs.length ?? 0} msgs
                   </span>
                 </button>
                 {isExpanded && (
@@ -392,19 +405,11 @@ export function ChatView() {
                               : 'bg-[var(--color-bg-deep)] text-[var(--color-text-secondary)]'
                           }`}
                         >
-                          <div className="flex flex-wrap gap-2 text-[10px] font-mono text-[var(--color-text-muted)] mb-1">
-                            <span>{formatDate(m.timestamp)}</span>
-                            <span>|</span>
-                            <span className="text-[var(--color-cyan)]">{m.platform || s.platform}</span>
-                            <span>|</span>
-                            <span>{title}</span>
+                          <div className="text-[10px] font-mono text-[var(--color-text-muted)] mb-1">
+                            {formatDate(m.timestamp)} · {m.role}
                           </div>
-                          <div className="text-sm whitespace-pre-wrap break-words">
-                            <span className="font-mono text-[var(--color-cyan)]">{m.role}:</span>{' '}
-                            {m.content || ''}
-                          </div>
-                          <div className="mt-2 text-[10px] font-mono text-[var(--color-text-muted)]">
-                            ID: {m.message_id}
+                          <div className="text-sm break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_code]:bg-black/20 dark:[&_code]:bg-white/20 [&_code]:px-1 [&_code]:rounded [&_pre]:overflow-x-auto [&_pre]:p-2 [&_pre]:rounded [&_a]:text-[var(--color-cyan)] [&_a]:underline">
+                            <ReactMarkdown>{m.content || ''}</ReactMarkdown>
                           </div>
                         </div>
                       ))
