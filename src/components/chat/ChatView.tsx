@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
+import rehypeSanitize from 'rehype-sanitize'
 import {
   fetchChatSessions,
   fetchChatMessages,
@@ -409,7 +410,7 @@ export function ChatView() {
                             {formatDate(m.timestamp)} · {m.role}
                           </div>
                           <div className="text-sm break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_code]:bg-black/20 dark:[&_code]:bg-white/20 [&_code]:px-1 [&_code]:rounded [&_pre]:overflow-x-auto [&_pre]:p-2 [&_pre]:rounded [&_a]:text-[var(--color-cyan)] [&_a]:underline">
-                            <ReactMarkdown>{m.content || ''}</ReactMarkdown>
+                            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{m.content || ''}</ReactMarkdown>
                           </div>
                         </div>
                       ))
