@@ -57,6 +57,76 @@ function formatDate(ts: string): string {
   }
 }
 
+/** Build tree from flat messages; render with indent for replies, collapse/expand for threads */
+function MessageTree({ messages, formatDate }: { messages: ChatMessage[]; formatDate: (ts: string) => string }) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const byId = new Map<string, ChatMessage>()
+  for (const m of messages) byId.set(m.message_id, m)
+  const roots = messages.filter((m) => !m.parent_message_id || !byId.has(m.parent_message_id))
+  const childrenByParent = new Map<string, ChatMessage[]>()
+  for (const m of messages) {
+    if (m.parent_message_id && byId.has(m.parent_message_id)) {
+      const arr = childrenByParent.get(m.parent_message_id) || []
+      arr.push(m)
+      childrenByParent.set(m.parent_message_id, arr)
+    }
+  }
+  const sortByTs = (a: ChatMessage, b: ChatMessage) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  roots.sort(sortByTs)
+  for (const arr of childrenByParent.values()) arr.sort(sortByTs)
+
+  const toggle = (id: string) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const renderMsg = (m: ChatMessage, depth: number) => {
+    const kids = childrenByParent.get(m.message_id) || []
+    const hasReplies = kids.length > 0
+    const isCollapsed = collapsed.has(m.message_id)
+    return (
+      <div key={m.message_id} className={depth > 0 ? 'ml-4 border-l-2 border-[var(--color-border)] pl-2' : ''}>
+        <div
+          className={`rounded-lg p-3 ${
+            m.role === 'user'
+              ? 'bg-[var(--color-cyan)]/10 text-[var(--color-text-primary)]'
+              : 'bg-[var(--color-bg-deep)] text-[var(--color-text-secondary)]'
+          }`}
+        >
+          <div className="flex items-center gap-2 text-[10px] font-mono text-[var(--color-text-muted)] mb-1">
+            {hasReplies && (
+              <button
+                type="button"
+                onClick={() => toggle(m.message_id)}
+                className="shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-[var(--color-bg-panel)]"
+                aria-label={isCollapsed ? 'Expand thread' : 'Collapse thread'}
+              >
+                {isCollapsed ? '+' : '-'}
+              </button>
+            )}
+            <span>{formatDate(m.timestamp)} · {m.role}</span>
+            {hasReplies && <span className="text-[var(--color-cyan)]">({kids.length} replies)</span>}
+          </div>
+          <div className="text-sm break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_code]:bg-black/20 dark:[&_code]:bg-white/20 [&_code]:px-1 [&_code]:rounded [&_pre]:overflow-x-auto [&_pre]:p-2 [&_pre]:rounded [&_a]:text-[var(--color-cyan)] [&_a]:underline">
+            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{m.content || ''}</ReactMarkdown>
+          </div>
+        </div>
+        {hasReplies && !isCollapsed && (
+          <div className="mt-2 space-y-2">
+            {kids.map((c) => renderMsg(c, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return <div className="space-y-3">{roots.map((r) => renderMsg(r, 0))}</div>
+}
+
 export function ChatView() {
   const [platform, setPlatform] = useState<string>('')
   const [role, setRole] = useState<string>('')
@@ -397,23 +467,7 @@ export function ChatView() {
                     {msgs.length === 0 ? (
                       <div className="text-[var(--color-text-muted)] text-xs">No messages</div>
                     ) : (
-                      msgs.map((m) => (
-                        <div
-                          key={m.message_id}
-                          className={`rounded-lg p-3 ${
-                            m.role === 'user'
-                              ? 'bg-[var(--color-cyan)]/10 text-[var(--color-text-primary)]'
-                              : 'bg-[var(--color-bg-deep)] text-[var(--color-text-secondary)]'
-                          }`}
-                        >
-                          <div className="text-[10px] font-mono text-[var(--color-text-muted)] mb-1">
-                            {formatDate(m.timestamp)} · {m.role}
-                          </div>
-                          <div className="text-sm break-words [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0 [&_code]:bg-black/20 dark:[&_code]:bg-white/20 [&_code]:px-1 [&_code]:rounded [&_pre]:overflow-x-auto [&_pre]:p-2 [&_pre]:rounded [&_a]:text-[var(--color-cyan)] [&_a]:underline">
-                            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{m.content || ''}</ReactMarkdown>
-                          </div>
-                        </div>
-                      ))
+                      <MessageTree messages={msgs} formatDate={formatDate} />
                     )}
                   </div>
                 )}

@@ -33,6 +33,8 @@ export interface ChatMessage {
   timestamp: string
   agent_id?: string
   metadata?: { tags?: string[] }
+  thread_id?: string
+  parent_message_id?: string
 }
 
 export interface ChatStats {
@@ -61,6 +63,16 @@ export interface FetchMessagesParams {
   tags?: string
   limit?: number
   offset?: number
+  threadId?: string
+  parentMessageId?: string
+}
+
+export interface ChatThread {
+  threadId: string
+  sessionId: string
+  platform: string
+  messageCount: number
+  lastMessageAt?: string
 }
 
 export async function fetchChatSessions(params: FetchSessionsParams = {}): Promise<{ sessions: ChatSession[]; total: number }> {
@@ -96,6 +108,8 @@ export async function fetchChatMessages(params: FetchMessagesParams = {}): Promi
   if (params.tags) sp.set('tags', params.tags)
   if (params.limit) sp.set('limit', String(params.limit))
   if (params.offset) sp.set('offset', String(params.offset))
+  if (params.threadId) sp.set('threadId', params.threadId)
+  if (params.parentMessageId) sp.set('parentMessageId', params.parentMessageId)
   const res = await fetch(`${API_BASE}/chat/messages?${sp}`)
   const json = await res.json()
   if (!json.success) throw new Error(json.error || json.data?.error || 'Failed to fetch messages')
@@ -135,6 +149,17 @@ export async function triggerIngest(workflowId: string, input?: object): Promise
   const json = await res.json()
   if (!json.success) throw new Error(json.error || json.data?.error || 'Ingest trigger failed')
   return json.data || { started: true, workflowId }
+}
+
+export async function fetchChatThreads(params: { platform?: string; sessionId?: string; limit?: number } = {}): Promise<{ threads: ChatThread[] }> {
+  const sp = new URLSearchParams()
+  if (params.platform) sp.set('platform', params.platform)
+  if (params.sessionId) sp.set('sessionId', params.sessionId)
+  if (params.limit) sp.set('limit', String(params.limit))
+  const res = await fetch(`${API_BASE}/chat/threads?${sp}`)
+  const json = await res.json()
+  if (!json.success) return { threads: [] }
+  return json.data || { threads: [] }
 }
 
 export async function fetchChatTags(): Promise<{ tags: string[] }> {
