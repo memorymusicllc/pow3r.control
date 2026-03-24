@@ -63,7 +63,22 @@ export type EvaluationPolicy = 'automated' | 'manual' | 'mixed'
 
 export type GateAction = 'block' | 'escalate' | 'auto-fix-proposal'
 
-export type ViewMode = '2d' | '3d' | 'timeline' | 'dashboard' | 'library' | 'abacus' | 'agents' | 'cursor' | 'playground' | 'pdam' | 'mcp-monitor' | 'data' | 'chat'
+export type ViewMode =
+  | '2d'
+  | '3d'
+  | 'timeline'
+  | 'dashboard'
+  | 'library'
+  | 'abacus'
+  | 'agents'
+  | 'cursor'
+  | 'playground'
+  | 'pdam'
+  | 'mcp-monitor'
+  | 'data'
+  | 'chat'
+  /** Pow3r 3D Data Graph: declarative v7-style scene + menu (Design Playbook) */
+  | 'pow3r-graph'
 
 export type LayoutMode = 'force-directed' | 'orbital' | 'hierarchy' | 'dagre'
 

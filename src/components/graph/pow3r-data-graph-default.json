@@ -1,0 +1,99 @@
+{
+  "schema_version": "pow3r.config.v7",
+  "scene": {
+    "id": "dataGraph3D",
+    "name": "Pow3r 3D Data Graph",
+    "description": "Interactive 3D visualization of JSON-chain nodes and edges",
+    "ui": {
+      "theme": "dark",
+      "visualCues": {
+        "nodeHighlight": "#00FFFF",
+        "edgeHighlight": "#FF00FF",
+        "menuBackground": "#111111",
+        "fontColor": "#FFFFFF"
+      }
+    }
+  },
+  "nodes": [
+    {
+      "node_id": "mediaGen1",
+      "node_type": "component",
+      "name": "Media Generator",
+      "position": [0, 0, 0],
+      "ui": { "label": "MediaGen", "shape": "sphere", "color": "#00AAFF", "size": 1.5 },
+      "metadata": { "reference": "Node #1: MediaGen Component" }
+    },
+    {
+      "node_id": "reactFlow2D",
+      "node_type": "ui",
+      "name": "React Flow 2D",
+      "position": [-5, 3, 0],
+      "ui": { "label": "2D View", "shape": "box", "color": "#00FFAA", "size": 1.2 },
+      "metadata": { "reference": "Node #2: React Flow 2D View" }
+    },
+    {
+      "node_id": "r3f3D",
+      "node_type": "ui",
+      "name": "React Three Fiber 3D",
+      "position": [5, 3, 0],
+      "ui": { "label": "3D View", "shape": "box", "color": "#FF00AA", "size": 1.2 },
+      "metadata": { "reference": "Node #3: React Three Fiber 3D View" }
+    },
+    {
+      "node_id": "telemetryEdge",
+      "node_type": "telemetry",
+      "name": "Telemetry Edge",
+      "position": [0, -3, 0],
+      "ui": { "label": "Telemetry", "shape": "cylinder", "color": "#FFFF00", "size": 1 },
+      "metadata": { "reference": "Node #4: Telemetry Control" }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "themeSwitchEdge",
+      "from_node": "mediaGen1",
+      "to_node": "mediaGen1",
+      "edge_type": "control",
+      "ui": { "color": "#FFFFFF", "lineWidth": 2 },
+      "metadata": { "reference": "Edge #1: Theme Switch (Self-Loop)" }
+    },
+    {
+      "edge_id": "viewSwitch2D",
+      "from_node": "mediaGen1",
+      "to_node": "reactFlow2D",
+      "edge_type": "telemetry",
+      "ui": { "color": "#00FF00", "lineWidth": 3 },
+      "metadata": { "reference": "Edge #2: MediaGen to 2D View" }
+    },
+    {
+      "edge_id": "viewSwitch3D",
+      "from_node": "mediaGen1",
+      "to_node": "r3f3D",
+      "edge_type": "telemetry",
+      "ui": { "color": "#FF0000", "lineWidth": 3 },
+      "metadata": { "reference": "Edge #3: MediaGen to 3D View" }
+    },
+    {
+      "edge_id": "telemetryControl",
+      "from_node": "telemetryEdge",
+      "to_node": "mediaGen1",
+      "edge_type": "control",
+      "ui": { "color": "#00FFFF", "lineWidth": 2 },
+      "metadata": { "reference": "Edge #4: Telemetry to MediaGen" }
+    }
+  ],
+  "menu": {
+    "enabled": true,
+    "position": "top-right",
+    "items": [
+      { "label": "Node #1: MediaGen", "action": "inspect_node", "target": "mediaGen1" },
+      { "label": "Node #2: 2D View", "action": "inspect_node", "target": "reactFlow2D" },
+      { "label": "Node #3: 3D View", "action": "inspect_node", "target": "r3f3D" },
+      { "label": "Node #4: Telemetry", "action": "inspect_node", "target": "telemetryEdge" },
+      { "label": "Edge #1: Theme Switch", "action": "inspect_edge", "target": "themeSwitchEdge" },
+      { "label": "Edge #2: MediaGen to 2D", "action": "inspect_edge", "target": "viewSwitch2D" },
+      { "label": "Edge #3: MediaGen to 3D", "action": "inspect_edge", "target": "viewSwitch3D" },
+      { "label": "Edge #4: Telemetry to MediaGen", "action": "inspect_edge", "target": "telemetryControl" }
+    ]
+  }
+}

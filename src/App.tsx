@@ -17,6 +17,9 @@ import { loadConfigByName } from './lib/config-loader'
 import { NodeExpansionProvider } from './context/NodeExpansionContext'
 import { Graph2D } from './components/graph/Graph2D'
 const Graph3D = lazy(() => import('./components/graph/Graph3D').then((m) => ({ default: m.Graph3D })))
+const Pow3rDataGraph3D = lazy(() =>
+  import('./components/graph/Pow3rDataGraph3D').then((m) => ({ default: m.Pow3rDataGraph3D })),
+)
 import { TimelineView } from './components/graph/TimelineView'
 import { NodeDetail } from './components/panels/NodeDetail'
 import { EdgeDetail } from './components/panels/EdgeDetail'
@@ -375,6 +378,17 @@ export default function App() {
             <Graph3D />
           </Suspense>
         )}
+        {viewMode === 'pow3r-graph' && (
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center bg-[var(--color-bg-deep)]">
+                <div className="w-8 h-8 border-2 border-[var(--color-cyan)] border-t-transparent rounded-full animate-spin" />
+              </div>
+            }
+          >
+            <Pow3rDataGraph3D />
+          </Suspense>
+        )}
         {viewMode === 'timeline' && <TimelineView />}
         {viewMode === 'dashboard' && <DashboardGrid />}
         {viewMode === 'abacus' && (
@@ -468,15 +482,26 @@ export default function App() {
         )}
 
         {/* Expansion panel */}
-        {expandedNodeId && !showGuardianDashboard && !expandedWorkflowId && !orchestratorLiveWorkflowId && <ExpandedNodeView />}
+        {expandedNodeId &&
+          !showGuardianDashboard &&
+          !expandedWorkflowId &&
+          !orchestratorLiveWorkflowId &&
+          viewMode !== 'pow3r-graph' && <ExpandedNodeView />}
 
         {/* Governance panels */}
         {showGuardianDashboard && <GuardianDashboard />}
         {expandedWorkflowId && !showGuardianDashboard && !orchestratorLiveWorkflowId && <WorkflowExpander />}
 
         {/* Detail panels */}
-        {selectedNodeId && !showGuardianDashboard && !expandedWorkflowId && <NodeDetail />}
-        {selectedEdgeId && !selectedNodeId && !showGuardianDashboard && !expandedWorkflowId && <EdgeDetail />}
+        {selectedNodeId &&
+          !showGuardianDashboard &&
+          !expandedWorkflowId &&
+          viewMode !== 'pow3r-graph' && <NodeDetail />}
+        {selectedEdgeId &&
+          !selectedNodeId &&
+          !showGuardianDashboard &&
+          !expandedWorkflowId &&
+          viewMode !== 'pow3r-graph' && <EdgeDetail />}
 
         {/* PKG Knowledge Overlay (Layer 5: Intelligence) */}
         <PKGOverlay />
