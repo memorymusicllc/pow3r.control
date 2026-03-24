@@ -24,6 +24,11 @@ const PRIMARY_VIEWS: ViewItem[] = [
 ]
 
 const OVERFLOW_VIEWS: ViewItem[] = [
+  {
+    mode: 'pow3r-graph',
+    label: 'Graph',
+    icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  },
   { mode: 'timeline', label: 'Timeline', icon: 'M3 12h18M3 6h18M3 18h18' },
   { mode: 'abacus', label: 'Abacus', icon: 'M12 2a10 10 0 0110 10A10 10 0 0112 22a10 10 0 0110-10A10 10 0 0112 2z' },
   { mode: 'agents', label: 'Agents', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 108 0 4 4 0 00-8 0z' },
@@ -32,11 +37,6 @@ const OVERFLOW_VIEWS: ViewItem[] = [
   { mode: 'pdam', label: 'PDAM', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
   { mode: 'mcp-monitor', label: 'MCP', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { mode: 'data', label: 'Data', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4' },
-  {
-    mode: 'pow3r-graph',
-    label: 'Graph',
-    icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
-  },
   { mode: 'chat', label: 'Chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
 ]
 
@@ -182,7 +182,7 @@ export function ViewSwitcher({ orientation = 'horizontal' }: ViewSwitcherProps) 
         </button>
 
         {moreOpen && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[180px] bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-[180px] max-h-[min(70vh,420px)] overflow-y-auto overscroll-contain bg-[var(--color-bg-panel)] border border-[var(--color-border)] rounded-lg shadow-xl z-50">
             <div className="p-2 space-y-0.5">
               {OVERFLOW_VIEWS.map((item) => (
                 <button
