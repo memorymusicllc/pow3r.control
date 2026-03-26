@@ -62,3 +62,16 @@ v5 configs supported via adapter (src/lib/xmap-parser.ts).
 - [pow3r.config](https://github.com/memorymusicllc/pow3r.config) -- Central platform config
 - [PIMP Plan](.cursor/plans/pimp_plan_configuration.plan.md) -- Architecture viz plan
 - [Design References](docs/design/Particles/) -- Concept art for Data-as-Light
+
+
+## Deployment Metadata (XMAP v8)
+
+This repository is part of the Pow3r Ecosystem configured via **XMAP v8 Schema**. To ensure agents and the orchestrator have full context for autonomous deployments without human intervention, the `deployment_metadata` specification defines:
+- **Repo & UI Directory:** `github_repo` and `ui_src_dir`
+- **MCP Development:** `mcp_dev_repo`, `ide_mcp_location` (e.g. `.cursor/mcp.json`), and `mcp_deployment_servers`
+- **Deployment Workflows:** `deploy_workflow_id` specifying the Orchestrator pipeline
+- **Orchestration & Cloudflare:** `orchestrator` and `deployment_orchestrators` detailing the platforms (e.g., Cloudflare Workers/Pages)
+- **Git Integration:** `git_page_link` for native CI and `git_hook_env` for webhook secrets (e.g. `POW3R_WRITER_DEPLOY_HOOK`)
+- **URLs:** `prod_url`, `dev_url`, and `custom_domain`
+
+The **Cloudflare Orchestrator** reads this metadata dynamically during deployment workflows (via `CONFIG_STORE`) to route webhooks and execute steps correctly across the distributed ecosystem.

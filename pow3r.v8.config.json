@@ -1,0 +1,86 @@
+{
+  "schema_version": "8.0.0",
+  "metadata": {
+    "ecosystem": "pow3r-control",
+    "version": "1.0.0",
+    "lastUpdate": "2026-03-26T00:01:13.328Z"
+  },
+  "nodes": [
+    {
+      "node_id": "pow3r-control",
+      "node_type": "ui.hydratable",
+      "name": "Pow3r Control (PIMP)",
+      "description": "Control plane UI for monitoring, managing, and visualizing the Pow3r ecosystem. XMAP diagram-first interface.",
+      "tech_stack": [
+        "vite",
+        "react",
+        "tailwindcss",
+        "radix-ui",
+        "zustand",
+        "react-flow"
+      ],
+      "status": "deployed",
+      "owner": "director-orchestrator",
+      "capabilities": [
+        "hydration",
+        "theme_switch",
+        "graph_patch",
+        "telemetry_emit"
+      ],
+      "ui_contract": {
+        "radix_primitives": [
+          "Dialog",
+          "Tabs",
+          "Select",
+          "Accordion",
+          "DropdownMenu"
+        ],
+        "hydration_sources": [
+          "wf-control-pages-deploy-v1"
+        ],
+        "theme_tokens": [
+          "--color-cyan",
+          "--color-magenta",
+          "--color-purple"
+        ],
+        "accessibility_level": "WCAG_AA"
+      },
+      "deployment_metadata": {
+        "platform": "cloudflare_pages",
+        "pages_project": "pow3r-control",
+        "prod_url": "https://pow3r-control.pages.dev",
+        "dev_url": "https://pow3r-control.pages.dev",
+        "github_repo": "memorymusicllc/pow3r.control",
+        "ui_src_dir": "src/",
+        "build_command": "npm run build",
+        "deploy_workflow_id": "wf-control-pages-deploy-v1",
+        "orchestrator": "pow3r",
+        "deployment_orchestrators": [
+          "pow3r",
+          "cloudflare_pages"
+        ],
+        "ide_mcp_location": ".cursor/mcp.json",
+        "mcp_dev_repo": "memorymusicllc/pow3r.config",
+        "mcp_deployment_servers": [],
+        "git_page_link": false,
+        "git_hook_env": "POW3R_CONTROL_DEPLOY_HOOK"
+      },
+      "spatial_position": {
+        "x": 100,
+        "y": 300,
+        "z": 0,
+        "layer": "surface"
+      },
+      "pimp_integration": {
+        "dashboard_card": true,
+        "health_endpoint": "https://pow3r-control.pages.dev",
+        "pimp_category": "surface",
+        "alert_thresholds": {
+          "latency_p95_ms": 3000,
+          "health_score_min": 60
+        }
+      }
+    }
+  ],
+  "edges": []
+}
