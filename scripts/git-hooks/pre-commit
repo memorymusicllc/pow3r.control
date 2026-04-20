@@ -1,0 +1,63 @@
+#!/bin/sh
+# MANAGED-BY-pow3r-git-hooks
+#
+# pre-commit: detect npm 10/11 lock-drift before CF Workers Build does.
+#
+# Why this exists
+# ---------------
+# CF Workers Build runs Node 22.16 / npm 10.9.2 on linux-x64 and uses
+# `npm clean-install`. Local devs often run npm 11 on a newer Node, and
+# npm 11 sometimes omits top-level optional dep entries (e.g. @emnapi/*)
+# that npm 10 then re-resolves to a different version and demands in the
+# lockfile -> `Missing: <pkg>@<ver> from lock file` -> build fails.
+#
+# This hook reproduces CF's env locally on every staged change to
+# `package.json` or `package-lock.json` and blocks the commit if the
+# lockfile would fail under npm 10.
+#
+# Cost: ~2s only when package*.json is staged; 0s otherwise.
+#
+# Reusable pattern doc: pow3r.config/dailylog.md (2026-04-20 entry).
+# Bypass (NOT recommended): `git commit --no-verify`.
+#
+set -e
+cd "$(git rev-parse --show-toplevel)"
+
+STAGED=$(git diff --cached --name-only | grep -E '^(package\.json|package-lock\.json)$' || true)
+if [ -n "$STAGED" ]; then
+  echo "[pow3r-git-hooks] lock-drift check (Node 22 / npm 10.9.2; CF Workers Build env)..."
+  TMP=$(mktemp -d -t lockcheck-XXXXXX)
+  trap "rm -rf '$TMP'" EXIT INT TERM
+  git checkout-index --prefix="$TMP/" -- package.json package-lock.json
+  LOG=/tmp/.pow3r-lockcheck.out
+  # --ignore-scripts: we only validate lockfile resolution, not lifecycle scripts.
+  # The temp dir only contains package.json + package-lock.json, so any
+  # prepare/postinstall script referencing other repo files would false-fail.
+  if ! ( cd "$TMP" && npx -y npm@10.9.2 ci --dry-run --ignore-scripts --no-audit --no-fund --no-progress >"$LOG" 2>&1 ); then
+    echo ""
+    echo "  Lock-drift detected: 'npm@10.9.2 ci --dry-run' fails on the staged"
+    echo "  package-lock.json. CF Workers Build uses the same env, so the build"
+    echo "  will fail on push. Last 15 lines of npm output:"
+    echo ""
+    tail -n 15 "$LOG" | sed 's/^/    /'
+    echo ""
+    echo "  Fix:"
+    echo "    rm -rf node_modules package-lock.json"
+    echo "    npx -y npm@10.9.2 install"
+    echo "    git add package-lock.json && git commit"
+    echo ""
+    echo "  Bypass (NOT recommended): git commit --no-verify"
+    echo ""
+    exit 1
+  fi
+  echo "[pow3r-git-hooks] lock-drift check passed"
+fi
+
+# Chain to user's preserved hook if our installer moved one aside.
+LOCAL="$(git rev-parse --git-dir)/hooks/pre-commit.local"
+if [ -x "$LOCAL" ]; then
+  echo "[pow3r-git-hooks] chaining to .git/hooks/pre-commit.local"
+  exec "$LOCAL" "$@"
+fi
+
+exit 0
